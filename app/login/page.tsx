@@ -2,8 +2,10 @@
 
 import { type FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
+    const router = useRouter();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [message, setMessage] = useState("");
@@ -12,6 +14,8 @@ export default function LoginPage() {
         "success" | "error" | ""
     >("");
     const [isLoading, setIsLoading] = useState(false);
+
+    
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -43,6 +47,8 @@ export default function LoginPage() {
             setMessageType("success");
             setMessage("Inicio de sesión correcto. Bienvenido a KAM.");
             setPassword("");
+            router.replace("/dashboard");
+            router.refresh();
         } catch {
             setMessageType("error");
             setMessage(
