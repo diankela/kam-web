@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { logout } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import AnxietyLineChart from "./components/AnxietyLineChart";
+import DoseLineChart from "./components/DoseLineChart";
 
 export const dynamic = "force-dynamic";
 
@@ -101,6 +102,7 @@ export default async function DashboardPage() {
         year: "2-digit",
     });
 
+
     const datosGraficoAnsiedad = [...(historialAnsiedad ?? [])]
         .reverse()
         .map((evento) => {
@@ -144,6 +146,25 @@ export default async function DashboardPage() {
                 maximumFractionDigits: 2,
             }).format(dosisTotalMes)
             : null;
+
+    const {
+        data: historialDosis,
+        error: historialDosisError,
+    } = await supabase
+        .from("eventos")
+        .select("fecha, dosis_medicamento")
+        .eq("user_id", user.id)
+        .not("dosis_medicamento", "is", null)
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false })
+        .limit(30);
+
+    const datosGraficoDosis = [...(historialDosis ?? [])]
+        .reverse()
+        .map((evento) => ({
+            fecha: evento.fecha,
+            dosis: Number(evento.dosis_medicamento ?? 0),
+        }));
 
     return (
         <div className="min-h-screen bg-kam-gray">
@@ -321,6 +342,30 @@ export default async function DashboardPage() {
                     </section>
                 ) : (
                     <AnxietyLineChart data={datosGraficoAnsiedad} />
+                )}
+                {historialDosisError ? (
+                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                        No fue posible cargar el historial de dosis.
+                    </section>
+                ) : (
+                    <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
+                        <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
+                            Seguimiento farmacológico
+                        </p>
+
+                        <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                            Evolución de las dosis
+                        </h2>
+
+                        <p className="mt-2 text-sm leading-6 text-kam-navy/70">
+                            El gráfico muestra los últimos registros que contienen una dosis
+                            de medicamento.
+                        </p>
+
+                        <div className="mt-6">
+                            <DoseLineChart data={datosGraficoDosis} />
+                        </div>
+                    </section>
                 )}
             </main>
         </div>
