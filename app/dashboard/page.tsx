@@ -119,6 +119,32 @@ export default async function DashboardPage() {
             };
         });
 
+    const { data: dosisDelMes, error: dosisError } = await supabase
+        .from("eventos")
+        .select("dosis_medicamento")
+        .eq("user_id", user.id)
+        .gte("fecha", inicioMes)
+        .lt("fecha", inicioMesSiguiente)
+        .not("dosis_medicamento", "is", null);
+
+    const dosisTotalMes =
+        !dosisError &&
+            dosisDelMes &&
+            dosisDelMes.length > 0
+            ? dosisDelMes.reduce(
+                (suma, evento) =>
+                    suma + (evento.dosis_medicamento ?? 0),
+                0,
+            )
+            : null;
+
+    const dosisTotalFormateada =
+        dosisTotalMes !== null
+            ? new Intl.NumberFormat("es-CL", {
+                maximumFractionDigits: 2,
+            }).format(dosisTotalMes)
+            : null;
+
     return (
         <div className="min-h-screen bg-kam-gray">
             <header className="bg-kam-navy text-kam-white">
@@ -170,7 +196,7 @@ export default async function DashboardPage() {
                         de seguridad por filas.
                     </p>
 
-                    <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
                         <div className="border-l-4 border-kam-magenta bg-kam-gray px-5 py-4">
                             <p className="text-xs font-bold uppercase tracking-wider text-kam-wine">
                                 Usuario conectado
@@ -244,6 +270,33 @@ export default async function DashboardPage() {
 
                             <p className="mt-2 text-sm text-kam-white/70">
                                 Promedio de {nombreMes}
+                            </p>
+                        </div>
+                        <div className="border-l-4 border-kam-navy bg-kam-magenta px-5 py-4 text-kam-white">
+                            <p className="text-xs font-bold uppercase tracking-wider text-kam-white/70">
+                                Dosis del mes
+                            </p>
+
+                            {dosisError ? (
+                                <p className="mt-2 font-semibold">
+                                    No disponible
+                                </p>
+                            ) : dosisTotalFormateada === null ? (
+                                <p className="mt-2 font-semibold">
+                                    Sin datos
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-4xl font-bold">
+                                    {dosisTotalFormateada}
+
+                                    <span className="ml-1 text-lg font-semibold text-kam-white/70">
+                                        mg
+                                    </span>
+                                </p>
+                            )}
+
+                            <p className="mt-2 text-sm text-kam-white/70">
+                                Acumulado de {nombreMes}
                             </p>
                         </div>
 
