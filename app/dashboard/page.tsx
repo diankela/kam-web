@@ -15,6 +15,34 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
+    const ahora = new Date();
+
+    const partesFecha = Object.fromEntries(
+        new Intl.DateTimeFormat("en-US", {
+            timeZone: "America/Santiago",
+            year: "numeric",
+            month: "2-digit",
+        })
+            .formatToParts(ahora)
+            .map(({ type, value }) => [type, value]),
+    );
+
+    const anioActual = Number(partesFecha.year);
+    const mesActual = Number(partesFecha.month);
+
+    const inicioMes = `${anioActual}-${String(mesActual).padStart(2, "0")}-01`;
+
+    const inicioMesSiguiente =
+        mesActual === 12
+            ? `${anioActual + 1}-01-01`
+            : `${anioActual}-${String(mesActual + 1).padStart(2, "0")}-01`;
+
+    const nombreMes = new Intl.DateTimeFormat("es-CL", {
+        timeZone: "America/Santiago",
+        month: "long",
+        year: "numeric",
+    }).format(ahora);
+
     const { count: totalEventos, error: eventosError } = await supabase
         .from("eventos")
         .select("*", {
@@ -22,6 +50,16 @@ export default async function DashboardPage() {
             head: true,
         })
         .eq("user_id", user.id);
+
+    const { count: eventosEsteMes, error: eventosMesError } = await supabase
+        .from("eventos")
+        .select("*", {
+            count: "exact",
+            head: true,
+        })
+        .eq("user_id", user.id)
+        .gte("fecha", inicioMes)
+        .lt("fecha", inicioMesSiguiente);
 
     return (
         <div className="min-h-screen bg-kam-gray">
@@ -74,7 +112,7 @@ export default async function DashboardPage() {
                         de seguridad por filas.
                     </p>
 
-                    <div className="mt-8 grid gap-5 md:grid-cols-2">
+                    <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
                         <div className="border-l-4 border-kam-magenta bg-kam-gray px-5 py-4">
                             <p className="text-xs font-bold uppercase tracking-wider text-kam-wine">
                                 Usuario conectado
@@ -102,6 +140,25 @@ export default async function DashboardPage() {
 
                             <p className="mt-2 text-sm text-kam-white/70">
                                 Solo se incluyen tus propios registros.
+                            </p>
+                        </div>
+                        <div className="border-l-4 border-kam-magenta bg-kam-blue px-5 py-4 text-kam-white">
+                            <p className="text-xs font-bold uppercase tracking-wider text-kam-white/70">
+                                Eventos este mes
+                            </p>
+
+                            {eventosMesError ? (
+                                <p className="mt-2 font-semibold">
+                                    No disponible
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-4xl font-bold">
+                                    {eventosEsteMes ?? 0}
+                                </p>
+                            )}
+
+                            <p className="mt-2 text-sm text-kam-white/70">
+                                {nombreMes}
                             </p>
                         </div>
                     </div>
