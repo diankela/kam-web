@@ -155,7 +155,9 @@ export default async function DashboardPage() {
                         </div>
 
                         <div>
-                            <p className="text-xl font-bold">KAM</p>
+                            <p className="text-xl font-bold">
+                                KAM
+                            </p>
 
                             <p className="text-xs text-kam-white/70">
                                 Kent Anxiety Manager
@@ -163,14 +165,32 @@ export default async function DashboardPage() {
                         </div>
                     </div>
 
-                    <form action={logout}>
-                        <button
-                            className="rounded bg-kam-magenta px-4 py-2 text-sm font-semibold text-kam-white transition hover:bg-kam-wine focus:outline-none focus:ring-4 focus:ring-kam-blue/30"
-                            type="submit"
-                        >
-                            Cerrar sesión
-                        </button>
-                    </form>
+                    <div className="flex shrink-0 items-center gap-3">
+                        <div className="hidden min-w-0 items-center gap-2 rounded-lg border border-kam-white/15 bg-kam-white/10 px-3 py-2 sm:flex">
+                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-kam-blue text-sm font-bold">
+                                @
+                            </div>
+
+                            <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-kam-white/60">
+                                    Sesión activa
+                                </p>
+
+                                <p className="max-w-40 truncate text-sm font-semibold text-kam-white lg:max-w-56">
+                                    {user.email}
+                                </p>
+                            </div>
+                        </div>
+
+                        <form action={logout}>
+                            <button
+                                className="rounded bg-kam-magenta px-4 py-2 text-sm font-semibold text-kam-white transition hover:bg-kam-wine focus:outline-none focus:ring-4 focus:ring-kam-blue/30"
+                                type="submit"
+                            >
+                                Cerrar sesión
+                            </button>
+                        </form>
+                    </div>
                 </div>
             </header>
 
@@ -196,15 +216,35 @@ export default async function DashboardPage() {
                         de seguridad por filas.
                     </p>
 
-                    <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-5">
+                    <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                         <div className="border-l-4 border-kam-magenta bg-kam-gray px-5 py-4">
+
                             <p className="text-xs font-bold uppercase tracking-wider text-kam-wine">
-                                Usuario conectado
+                                Dosis del mes
                             </p>
 
-                            <p className="mt-1 font-semibold text-kam-navy">
-                                {user.email}
+                            {dosisError ? (
+                                <p className="mt-2 font-semibold text-kam-navy">
+                                    No disponible
+                                </p>
+                            ) : dosisTotalFormateada === null ? (
+                                <p className="mt-2 font-semibold text-kam-navy">
+                                    Sin datos
+                                </p>
+                            ) : (
+                                <p className="mt-2 text-4xl font-bold text-kam-navy">
+                                    {dosisTotalFormateada}
+
+                                    <span className="ml-1 text-lg font-semibold text-kam-navy/70">
+                                        mg
+                                    </span>
+                                </p>
+                            )}
+
+                            <p className="mt-2 text-sm text-kam-wine">
+                                Acumulado de {nombreMes}
                             </p>
+
                         </div>
 
                         <div className="border-l-4 border-kam-blue bg-kam-navy px-5 py-4 text-kam-white">
@@ -270,33 +310,6 @@ export default async function DashboardPage() {
 
                             <p className="mt-2 text-sm text-kam-white/70">
                                 Promedio de {nombreMes}
-                            </p>
-                        </div>
-                        <div className="border-l-4 border-kam-navy bg-kam-magenta px-5 py-4 text-kam-white">
-                            <p className="text-xs font-bold uppercase tracking-wider text-kam-white/70">
-                                Dosis del mes
-                            </p>
-
-                            {dosisError ? (
-                                <p className="mt-2 font-semibold">
-                                    No disponible
-                                </p>
-                            ) : dosisTotalFormateada === null ? (
-                                <p className="mt-2 font-semibold">
-                                    Sin datos
-                                </p>
-                            ) : (
-                                <p className="mt-2 text-4xl font-bold">
-                                    {dosisTotalFormateada}
-
-                                    <span className="ml-1 text-lg font-semibold text-kam-white/70">
-                                        mg
-                                    </span>
-                                </p>
-                            )}
-
-                            <p className="mt-2 text-sm text-kam-white/70">
-                                Acumulado de {nombreMes}
                             </p>
                         </div>
 
