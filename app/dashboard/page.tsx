@@ -3,6 +3,8 @@ import { logout } from "./actions";
 import { createClient } from "@/lib/supabase/server";
 import AnxietyLineChart from "./components/AnxietyLineChart";
 import DoseLineChart from "./components/DoseLineChart";
+import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
+import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +167,20 @@ export default async function DashboardPage() {
             fecha: evento.fecha,
             dosis: Number(evento.dosis_medicamento ?? 0),
         }));
+
+    const {
+        data: eventosParaAnalisis,
+        error: analisisSintomasError,
+    } = await supabase
+        .from("eventos")
+        .select("id, descripcion")
+        .eq("user_id", user.id)
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false });
+
+    const resumenSintomas = countSymptomFrequencies(
+        eventosParaAnalisis ?? [],
+    );
 
     return (
         <div className="min-h-screen bg-kam-gray">
@@ -366,6 +382,13 @@ export default async function DashboardPage() {
                             <DoseLineChart data={datosGraficoDosis} />
                         </div>
                     </section>
+                )}
+                {analisisSintomasError ? (
+                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                        No fue posible analizar las descripciones de los eventos.
+                    </section>
+                ) : (
+                    <SymptomFrequencyPanel summary={resumenSintomas} />
                 )}
             </main>
         </div>
