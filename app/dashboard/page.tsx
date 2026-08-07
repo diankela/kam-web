@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { logout } from "./actions";
 import { createClient } from "@/lib/supabase/server";
+import AnxietyLineChart from "./components/AnxietyLineChart";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,43 @@ export default async function DashboardPage() {
                 0,
             ) / nivelesAnsiedad.length
             : null;
+
+    const {
+        data: historialAnsiedad,
+        error: historialAnsiedadError,
+    } = await supabase
+        .from("eventos")
+        .select("fecha, hora, lvl_ansiedad")
+        .eq("user_id", user.id)
+        .not("lvl_ansiedad", "is", null)
+        .order("fecha", { ascending: false })
+        .order("hora", { ascending: false })
+        .limit(30);
+
+    const formateadorFechaGrafico = new Intl.DateTimeFormat("es-CL", {
+        timeZone: "UTC",
+        day: "2-digit",
+        month: "short",
+        year: "2-digit",
+    });
+
+    const datosGraficoAnsiedad = [...(historialAnsiedad ?? [])]
+        .reverse()
+        .map((evento) => {
+            const fechaFormateada = formateadorFechaGrafico.format(
+                new Date(`${evento.fecha}T00:00:00Z`),
+            );
+
+            const horaFormateada = evento.hora
+                ? evento.hora.slice(0, 5)
+                : "";
+
+            return {
+                fecha: `${fechaFormateada}${horaFormateada ? ` ${horaFormateada}` : ""
+                    }`,
+                nivel: evento.lvl_ansiedad ?? 0,
+            };
+        });
 
     return (
         <div className="min-h-screen bg-kam-gray">
@@ -211,6 +249,13 @@ export default async function DashboardPage() {
 
                     </div>
                 </section>
+                {historialAnsiedadError ? (
+                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                        No fue posible cargar el historial de ansiedad.
+                    </section>
+                ) : (
+                    <AnxietyLineChart data={datosGraficoAnsiedad} />
+                )}
             </main>
         </div>
     );
