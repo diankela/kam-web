@@ -5,6 +5,8 @@ import AnxietyLineChart from "./components/AnxietyLineChart";
 import DoseLineChart from "./components/DoseLineChart";
 import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
 import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
+import EmotionFrequencyPanel from "./components/EmotionFrequencyPanel";
+import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
 
 export const dynamic = "force-dynamic";
 
@@ -170,15 +172,19 @@ export default async function DashboardPage() {
 
     const {
         data: eventosParaAnalisis,
-        error: analisisSintomasError,
+        error: analisisRegistrosError,
     } = await supabase
         .from("eventos")
-        .select("id, descripcion")
+        .select("id, descripcion, est_emo_pre")
         .eq("user_id", user.id)
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false });
 
     const resumenSintomas = countSymptomFrequencies(
+        eventosParaAnalisis ?? [],
+    );
+
+    const resumenEmociones = countEmotionFrequencies(
         eventosParaAnalisis ?? [],
     );
 
@@ -383,12 +389,21 @@ export default async function DashboardPage() {
                         </div>
                     </section>
                 )}
-                {analisisSintomasError ? (
+                {analisisRegistrosError ? (
                     <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible analizar las descripciones de los eventos.
+                        No fue posible analizar la información de los
+                        eventos.
                     </section>
                 ) : (
-                    <SymptomFrequencyPanel summary={resumenSintomas} />
+                    <>
+                        <SymptomFrequencyPanel
+                            summary={resumenSintomas}
+                        />
+
+                        <EmotionFrequencyPanel
+                            summary={resumenEmociones}
+                        />
+                    </>
                 )}
             </main>
         </div>
