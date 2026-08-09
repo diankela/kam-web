@@ -1,8 +1,9 @@
 "use client";
-
+import Image from "next/image";
 import { type FormEvent, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+
 
 export default function LoginPage() {
     const router = useRouter();
@@ -15,7 +16,7 @@ export default function LoginPage() {
     >("");
     const [isLoading, setIsLoading] = useState(false);
 
-    
+
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -65,9 +66,14 @@ export default function LoginPage() {
             <header className="bg-kam-navy text-kam-white">
                 <div className="mx-auto flex h-18 w-full max-w-6xl items-center justify-between px-5 sm:px-8">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded bg-kam-blue text-xl font-bold">
-                            K
-                        </div>
+                        <Image
+                            alt="Símbolo de KAM"
+                            className="h-12 w-12 shrink-0 object-contain"
+                            height={96}
+                            priority
+                            src="/images/kam-logo-header.png"
+                            width={96}
+                        />
 
                         <div>
                             <p className="text-xl font-bold tracking-tight">KAM</p>
@@ -137,9 +143,21 @@ export default function LoginPage() {
                     </aside>
 
                     {/* Formulario */}
+                    {/* Formulario */}
                     <div className="p-8 sm:p-10 lg:p-12">
+                        <div className="mb-6 flex justify-center">
+                            <Image
+                                alt="KAM - Kent Anxiety Manager"
+                                className="h-auto w-full max-w-80 object-contain"
+                                height={789}
+                                priority
+                                src="/images/kam-logo-horizontal-transparent.png"
+                                width={1993}
+                            />
+                        </div>
+
                         <p className="text-sm font-bold uppercase tracking-wider text-kam-blue">
-                            Portal KAM
+                            Acceso seguro
                         </p>
 
                         <h2 className="mt-2 text-3xl font-bold text-kam-navy">

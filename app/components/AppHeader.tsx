@@ -1,3 +1,5 @@
+
+import Image from "next/image";
 import Link from "next/link";
 
 import { logout } from "@/app/actions/auth";
@@ -34,9 +36,14 @@ export default function AppHeader({
             <header className="bg-kam-navy text-kam-white">
                 <div className="mx-auto flex min-h-18 w-full max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3 sm:px-8">
                     <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded bg-kam-blue text-xl font-bold">
-                            K
-                        </div>
+                        <Image
+                            alt="Símbolo de KAM"
+                            className="h-12 w-12 shrink-0 object-contain"
+                            height={96}
+                            priority
+                            src="/images/kam-logo-header.png"
+                            width={96}
+                        />
 
                         <div>
                             <p className="text-xl font-bold">
@@ -96,8 +103,8 @@ export default function AppHeader({
                                         : undefined
                                 }
                                 className={`rounded border px-4 py-2 text-sm font-semibold transition-colors duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-kam-magenta ${isActive
-                                        ? "border-kam-navy bg-kam-navy text-kam-white hover:border-kam-navy"
-                                        : "border-transparent text-kam-navy hover:border-kam-blue hover:bg-kam-blue hover:text-kam-white"
+                                    ? "border-kam-navy bg-kam-navy text-kam-white hover:border-kam-navy"
+                                    : "border-transparent text-kam-navy hover:border-kam-blue hover:bg-kam-blue hover:text-kam-white"
                                     }`}
                                 href={item.href}
                             >
