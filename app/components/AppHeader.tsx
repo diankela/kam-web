@@ -4,7 +4,7 @@ import { logout } from "@/app/actions/auth";
 
 type AppHeaderProps = {
     email: string;
-    activePage: "dashboard" | "analisis";
+    activePage: "dashboard" | "analisis" | "eventos";
 };
 
 const NAVIGATION_ITEMS = [
@@ -12,6 +12,11 @@ const NAVIGATION_ITEMS = [
         id: "dashboard",
         label: "Resumen",
         href: "/dashboard",
+    },
+    {
+        id: "eventos",
+        label: "Registros",
+        href: "/eventos",
     },
     {
         id: "analisis",
