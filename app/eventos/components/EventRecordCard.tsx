@@ -8,6 +8,9 @@ export type EventRecord = {
     descripcion: string | null;
     duracion_aprox: number | string | null;
     lvl_ansiedad: number | null;
+    causas: string | null;
+    imp_act_diarias: number | string | null;
+    est_emo_pre: string | string[] | null;
 };
 
 type EventRecordCardProps = {
@@ -52,6 +55,24 @@ function formatDosis(
     }).format(valor)} mg`;
 }
 
+function parseEmociones(
+    emociones: string | string[] | null,
+) {
+    if (!emociones) {
+        return [];
+    }
+
+    const valores = Array.isArray(emociones)
+        ? emociones
+        : emociones
+            .replace(/[{}[\]"]/g, "")
+            .split(",");
+
+    return valores
+        .map((emocion) => emocion.trim())
+        .filter(Boolean);
+}
+
 export default function EventRecordCard({
     event,
 }: EventRecordCardProps) {
@@ -62,6 +83,15 @@ export default function EventRecordCard({
     const duracion =
         event.duracion_aprox !== null
             ? String(event.duracion_aprox)
+            : "Sin dato";
+    const emociones = parseEmociones(
+        event.est_emo_pre,
+    );
+
+    const impacto =
+        event.imp_act_diarias !== null &&
+            String(event.imp_act_diarias).trim()
+            ? String(event.imp_act_diarias)
             : "Sin dato";
 
     return (
@@ -129,7 +159,57 @@ export default function EventRecordCard({
                         "Sin descripción registrada."}
                 </p>
             </div>
+            <details className="mt-5 rounded-lg border border-kam-gray bg-kam-gray/50 p-4 open:border-kam-magenta">
+                <summary className="cursor-pointer font-bold text-kam-blue transition hover:text-kam-magenta">
+                    Ver información adicional
+                </summary>
 
+                <div className="mt-5 grid gap-5 border-t border-kam-gray pt-5 sm:grid-cols-2">
+                    <div className="sm:col-span-2">
+                        <p className="text-xs font-bold uppercase tracking-wide text-kam-wine">
+                            Posibles causas
+                        </p>
+
+                        <p className="mt-2 leading-6 text-kam-navy/75">
+                            {event.causas?.trim() ||
+                                "Sin causas registradas."}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-kam-wine">
+                            Impacto en actividades
+                        </p>
+
+                        <p className="mt-2 font-semibold text-kam-navy">
+                            {impacto}
+                        </p>
+                    </div>
+
+                    <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-kam-wine">
+                            Estados emocionales
+                        </p>
+
+                        {emociones.length > 0 ? (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                                {emociones.map((emocion) => (
+                                    <span
+                                        key={emocion}
+                                        className="rounded-full bg-kam-blue/10 px-3 py-1 text-sm font-semibold text-kam-blue"
+                                    >
+                                        {emocion}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="mt-2 text-kam-navy/70">
+                                Sin emociones registradas.
+                            </p>
+                        )}
+                    </div>
+                </div>
+            </details>
             {event.nombre_psicotropico && (
                 <p className="mt-4 text-sm text-kam-navy/60">
                     Medicamento:{" "}

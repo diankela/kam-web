@@ -122,7 +122,10 @@ export default async function EventosPage({
                 lugar,
                 descripcion,
                 duracion_aprox,
-                lvl_ansiedad
+                lvl_ansiedad,
+                causas,
+                imp_act_diarias,
+                est_emo_pre
             `,
             {
                 count: "exact",
