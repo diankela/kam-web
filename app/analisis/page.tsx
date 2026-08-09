@@ -7,10 +7,30 @@ import EmotionFrequencyPanel from "./components/EmotionFrequencyPanel";
 import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
 import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
 import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
+import PeriodFilter from "./components/PeriodFilter";
+import {
+    getAnalysisStartDate,
+    parseAnalysisPeriod,
+} from "@/lib/analysis/analysisPeriod";
 
+type AnalisisPageProps = {
+    searchParams: Promise<{
+        periodo?: string | string[];
+    }>;
+};
 export const dynamic = "force-dynamic";
 
-export default async function AnalisisPage() {
+export default async function AnalisisPage({
+    searchParams,
+}: AnalisisPageProps) {
+    const { periodo } = await searchParams;
+
+    const activePeriod =
+        parseAnalysisPeriod(periodo);
+
+    const analysisStartDate =
+        getAnalysisStartDate(activePeriod);
+
     const supabase = await createClient();
 
     const {
@@ -21,17 +41,26 @@ export default async function AnalisisPage() {
         redirect("/login");
     }
 
-    const {
-        data: historialAnsiedad,
-        error: historialAnsiedadError,
-    } = await supabase
+    let historialAnsiedadQuery = supabase
         .from("eventos")
         .select("fecha, hora, lvl_ansiedad")
         .eq("user_id", user.id)
-        .not("lvl_ansiedad", "is", null)
+        .not("lvl_ansiedad", "is", null);
+
+    if (analysisStartDate) {
+        historialAnsiedadQuery =
+            historialAnsiedadQuery.gte(
+                "fecha",
+                analysisStartDate,
+            );
+    }
+
+    const {
+        data: historialAnsiedad,
+        error: historialAnsiedadError,
+    } = await historialAnsiedadQuery
         .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(30);
+        .order("hora", { ascending: false });
 
     const formateadorFechaGrafico =
         new Intl.DateTimeFormat("es-CL", {
@@ -68,17 +97,26 @@ export default async function AnalisisPage() {
             };
         });
 
-    const {
-        data: historialDosis,
-        error: historialDosisError,
-    } = await supabase
+    let historialDosisQuery = supabase
         .from("eventos")
         .select("fecha, dosis_medicamento")
         .eq("user_id", user.id)
-        .not("dosis_medicamento", "is", null)
+        .not("dosis_medicamento", "is", null);
+
+    if (analysisStartDate) {
+        historialDosisQuery =
+            historialDosisQuery.gte(
+                "fecha",
+                analysisStartDate,
+            );
+    }
+
+    const {
+        data: historialDosis,
+        error: historialDosisError,
+    } = await historialDosisQuery
         .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(30);
+        .order("hora", { ascending: false });
 
     const datosGraficoDosis = [
         ...(historialDosis ?? []),
@@ -91,13 +129,23 @@ export default async function AnalisisPage() {
             ),
         }));
 
+    let eventosParaAnalisisQuery = supabase
+        .from("eventos")
+        .select("id, descripcion, est_emo_pre")
+        .eq("user_id", user.id);
+
+    if (analysisStartDate) {
+        eventosParaAnalisisQuery =
+            eventosParaAnalisisQuery.gte(
+                "fecha",
+                analysisStartDate,
+            );
+    }
+
     const {
         data: eventosParaAnalisis,
         error: analisisRegistrosError,
-    } = await supabase
-        .from("eventos")
-        .select("id, descripcion, est_emo_pre")
-        .eq("user_id", user.id)
+    } = await eventosParaAnalisisQuery
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false });
 
@@ -135,6 +183,9 @@ export default async function AnalisisPage() {
                         En esta página reuniremos los gráficos
                         y análisis detallados de tus registros.
                     </p>
+                    <PeriodFilter
+                        activePeriod={activePeriod}
+                    />
                 </section>
                 {historialAnsiedadError ? (
                     <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
@@ -162,8 +213,8 @@ export default async function AnalisisPage() {
                         </h2>
 
                         <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                            El gráfico muestra los últimos
-                            registros que contienen una dosis de
+                            El gráfico muestra los registros del período
+                            seleccionado que contienen una dosis de
                             medicamento.
                         </p>
 

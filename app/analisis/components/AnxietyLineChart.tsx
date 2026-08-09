@@ -34,8 +34,7 @@ export default function AnxietyLineChart({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                    El gráfico muestra los últimos registros que contienen un
-                    nivel de ansiedad.
+                    El gráfico muestra los registros del período seleccionado que contienen un nivel de ansiedad.
                 </p>
             </div>
 
