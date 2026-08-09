@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import AppHeader from "@/app/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
-
+import LocationDonutChart from "./components/LocationDonutChart";
+import { countLocationFrequencies } from "@/lib/analysis/countLocationFrequencies";
 
 export const dynamic = "force-dynamic";
 
@@ -81,7 +82,7 @@ export default async function DashboardPage() {
                 0,
             ) / nivelesAnsiedad.length
             : null;
-            
+
     const { data: dosisDelMes, error: dosisError } = await supabase
         .from("eventos")
         .select("dosis_medicamento")
@@ -107,6 +108,18 @@ export default async function DashboardPage() {
                 maximumFractionDigits: 2,
             }).format(dosisTotalMes)
             : null;
+
+    const {
+        data: eventosConLugar,
+        error: lugaresError,
+    } = await supabase
+        .from("eventos")
+        .select("id, lugar")
+        .eq("user_id", user.id);
+
+    const resumenLugares = countLocationFrequencies(
+        eventosConLugar ?? [],
+    );
 
     return (
         <div className="min-h-screen bg-kam-gray">
@@ -233,9 +246,15 @@ export default async function DashboardPage() {
 
                     </div>
                 </section>
-                
-                
-                
+                {lugaresError ? (
+                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                        No fue posible cargar la distribución de lugares.
+                    </section>
+                ) : (
+                    <LocationDonutChart summary={resumenLugares} />
+                )}
+
+
             </main>
         </div>
     );
