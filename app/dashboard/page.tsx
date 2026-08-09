@@ -1,12 +1,7 @@
 import { redirect } from "next/navigation";
-import { logout } from "./actions";
+import AppHeader from "@/app/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
-import AnxietyLineChart from "./components/AnxietyLineChart";
-import DoseLineChart from "./components/DoseLineChart";
-import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
-import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
-import EmotionFrequencyPanel from "./components/EmotionFrequencyPanel";
-import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
+
 
 export const dynamic = "force-dynamic";
 
@@ -86,45 +81,7 @@ export default async function DashboardPage() {
                 0,
             ) / nivelesAnsiedad.length
             : null;
-
-    const {
-        data: historialAnsiedad,
-        error: historialAnsiedadError,
-    } = await supabase
-        .from("eventos")
-        .select("fecha, hora, lvl_ansiedad")
-        .eq("user_id", user.id)
-        .not("lvl_ansiedad", "is", null)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(30);
-
-    const formateadorFechaGrafico = new Intl.DateTimeFormat("es-CL", {
-        timeZone: "UTC",
-        day: "2-digit",
-        month: "short",
-        year: "2-digit",
-    });
-
-
-    const datosGraficoAnsiedad = [...(historialAnsiedad ?? [])]
-        .reverse()
-        .map((evento) => {
-            const fechaFormateada = formateadorFechaGrafico.format(
-                new Date(`${evento.fecha}T00:00:00Z`),
-            );
-
-            const horaFormateada = evento.hora
-                ? evento.hora.slice(0, 5)
-                : "";
-
-            return {
-                fecha: `${fechaFormateada}${horaFormateada ? ` ${horaFormateada}` : ""
-                    }`,
-                nivel: evento.lvl_ansiedad ?? 0,
-            };
-        });
-
+            
     const { data: dosisDelMes, error: dosisError } = await supabase
         .from("eventos")
         .select("dosis_medicamento")
@@ -151,97 +108,15 @@ export default async function DashboardPage() {
             }).format(dosisTotalMes)
             : null;
 
-    const {
-        data: historialDosis,
-        error: historialDosisError,
-    } = await supabase
-        .from("eventos")
-        .select("fecha, dosis_medicamento")
-        .eq("user_id", user.id)
-        .not("dosis_medicamento", "is", null)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false })
-        .limit(30);
-
-    const datosGraficoDosis = [...(historialDosis ?? [])]
-        .reverse()
-        .map((evento) => ({
-            fecha: evento.fecha,
-            dosis: Number(evento.dosis_medicamento ?? 0),
-        }));
-
-    const {
-        data: eventosParaAnalisis,
-        error: analisisRegistrosError,
-    } = await supabase
-        .from("eventos")
-        .select("id, descripcion, est_emo_pre")
-        .eq("user_id", user.id)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false });
-
-    const resumenSintomas = countSymptomFrequencies(
-        eventosParaAnalisis ?? [],
-    );
-
-    const resumenEmociones = countEmotionFrequencies(
-        eventosParaAnalisis ?? [],
-    );
-
     return (
         <div className="min-h-screen bg-kam-gray">
-            <header className="bg-kam-navy text-kam-white">
-                <div className="mx-auto flex min-h-18 w-full max-w-6xl items-center justify-between gap-4 px-5 py-3 sm:px-8">
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded bg-kam-blue text-xl font-bold">
-                            K
-                        </div>
-
-                        <div>
-                            <p className="text-xl font-bold">
-                                KAM
-                            </p>
-
-                            <p className="text-xs text-kam-white/70">
-                                Kent Anxiety Manager
-                            </p>
-                        </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-3">
-                        <div className="hidden min-w-0 items-center gap-2 rounded-lg border border-kam-white/15 bg-kam-white/10 px-3 py-2 sm:flex">
-                            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-kam-blue text-sm font-bold">
-                                @
-                            </div>
-
-                            <div className="min-w-0">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-kam-white/60">
-                                    Sesión activa
-                                </p>
-
-                                <p className="max-w-40 truncate text-sm font-semibold text-kam-white lg:max-w-56">
-                                    {user.email}
-                                </p>
-                            </div>
-                        </div>
-
-                        <form action={logout}>
-                            <button
-                                className="rounded bg-kam-magenta px-4 py-2 text-sm font-semibold text-kam-white transition hover:bg-kam-wine focus:outline-none focus:ring-4 focus:ring-kam-blue/30"
-                                type="submit"
-                            >
-                                Cerrar sesión
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </header>
-
-            <div className="bg-kam-blue text-kam-white">
-                <div className="mx-auto w-full max-w-6xl px-5 py-3 text-sm sm:px-8">
-                    Panel principal
-                </div>
-            </div>
+            <AppHeader
+                activePage="dashboard"
+                email={
+                    user.email ??
+                    "Usuario autenticado"
+                }
+            />
 
             <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8">
                 <section className="rounded-xl bg-kam-white p-8 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-10">
@@ -358,53 +233,9 @@ export default async function DashboardPage() {
 
                     </div>
                 </section>
-                {historialAnsiedadError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible cargar el historial de ansiedad.
-                    </section>
-                ) : (
-                    <AnxietyLineChart data={datosGraficoAnsiedad} />
-                )}
-                {historialDosisError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible cargar el historial de dosis.
-                    </section>
-                ) : (
-                    <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
-                        <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
-                            Seguimiento farmacológico
-                        </p>
-
-                        <h2 className="mt-2 text-2xl font-bold text-kam-navy">
-                            Evolución de las dosis
-                        </h2>
-
-                        <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                            El gráfico muestra los últimos registros que contienen una dosis
-                            de medicamento.
-                        </p>
-
-                        <div className="mt-6">
-                            <DoseLineChart data={datosGraficoDosis} />
-                        </div>
-                    </section>
-                )}
-                {analisisRegistrosError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible analizar la información de los
-                        eventos.
-                    </section>
-                ) : (
-                    <>
-                        <SymptomFrequencyPanel
-                            summary={resumenSintomas}
-                        />
-
-                        <EmotionFrequencyPanel
-                            summary={resumenEmociones}
-                        />
-                    </>
-                )}
+                
+                
+                
             </main>
         </div>
     );
