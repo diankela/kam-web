@@ -1,4 +1,4 @@
-
+import { createClient } from "@/lib/supabase/server";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -6,7 +6,11 @@ import { logout } from "@/app/actions/auth";
 
 type AppHeaderProps = {
     email: string;
-    activePage: "dashboard" | "analisis" | "eventos";
+    activePage:
+    | "dashboard"
+    | "eventos"
+    | "analisis"
+    | "perfil";
 };
 
 const NAVIGATION_ITEMS = [
@@ -25,12 +29,48 @@ const NAVIGATION_ITEMS = [
         label: "Análisis",
         href: "/analisis",
     },
+    {
+        id: "perfil",
+        label: "Perfil",
+        href: "/perfil",
+    },
 ] as const;
 
-export default function AppHeader({
+export default async function AppHeader({
     email,
     activePage,
 }: AppHeaderProps) {
+    const supabase = await createClient();
+
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    let displayName = email;
+
+    if (user) {
+        const { data: patient } = await supabase
+            .from("pacientes")
+            .select("nombres, apellido_paterno")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+        const primerNombre =
+            patient?.nombres?.trim().split(/\s+/)[0] ?? "";
+
+        const apellidoPaterno =
+            patient?.apellido_paterno?.trim() ?? "";
+
+        const nombreCompleto = [
+            primerNombre,
+            apellidoPaterno,
+        ]
+            .filter(Boolean)
+            .join(" ");
+
+        displayName = nombreCompleto || email;
+    }
+
     return (
         <>
             <header className="bg-kam-navy text-kam-white">
@@ -68,7 +108,7 @@ export default function AppHeader({
                                 </p>
 
                                 <p className="max-w-52 truncate text-sm font-semibold">
-                                    {email}
+                                    {displayName}
                                 </p>
                             </div>
                         </div>
