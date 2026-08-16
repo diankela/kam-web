@@ -238,6 +238,147 @@ export async function createHealthProfessional(
     );
 }
 
+export async function updateHealthProfessional(
+    formData: FormData,
+) {
+    const supabase = await createClient();
+
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        redirect("/login");
+    }
+
+    const professionalId = String(
+        formData.get("professional_id") ?? "",
+    ).trim();
+
+    const nombres = String(
+        formData.get("nombres_profesional") ?? "",
+    ).trim();
+
+    const apellidos = String(
+        formData.get("apellidos_profesional") ?? "",
+    ).trim();
+
+    const profesion = String(
+        formData.get("profesion") ?? "",
+    ).trim();
+
+    const funcionSeguimiento = String(
+        formData.get("funcion_seguimiento") ?? "otro",
+    ).trim();
+
+    const especialidad = String(
+        formData.get("especialidad") ?? "",
+    ).trim();
+
+    const centroSalud = String(
+        formData.get("centro_salud") ?? "",
+    ).trim();
+
+    const email = String(
+        formData.get("email_profesional") ?? "",
+    ).trim();
+
+    const telefono = String(
+        formData.get("telefono") ?? "",
+    ).trim();
+
+    const fechaInicioAtencion = String(
+        formData.get("fecha_inicio_atencion") ?? "",
+    ).trim();
+
+    if (!UUID_PATTERN.test(professionalId)) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_id#profesionales-registrados",
+        );
+    }
+
+    if (!nombres || !apellidos || !profesion) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_requeridos#profesionales-registrados",
+        );
+    }
+
+    if (
+        nombres.length > 100 ||
+        apellidos.length > 120 ||
+        profesion.length > 100 ||
+        especialidad.length > 120 ||
+        centroSalud.length > 150 ||
+        email.length > 254 ||
+        telefono.length > 30
+    ) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_longitud#profesionales-registrados",
+        );
+    }
+
+    if (email && !EMAIL_PATTERN.test(email)) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_email#profesionales-registrados",
+        );
+    }
+
+    if (
+        fechaInicioAtencion &&
+        !DATE_PATTERN.test(fechaInicioAtencion)
+    ) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_fecha#profesionales-registrados",
+        );
+    }
+
+    if (
+        !PROFESSIONAL_FUNCTIONS.has(
+            funcionSeguimiento,
+        )
+    ) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_funcion#profesionales-registrados",
+        );
+    }
+
+    const {
+        data: updatedProfessional,
+        error,
+    } = await supabase
+        .from("profesionales_salud")
+        .update({
+            nombres,
+            apellidos,
+            profesion,
+            funcion_seguimiento: funcionSeguimiento,
+            especialidad: especialidad || null,
+            centro_salud: centroSalud || null,
+            email: email || null,
+            telefono: telefono || null,
+            fecha_inicio_atencion:
+                fechaInicioAtencion || null,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", professionalId)
+        .eq("paciente_id", user.id)
+        .select("id")
+        .maybeSingle();
+
+    if (error || !updatedProfessional) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_guardar#profesionales-registrados",
+        );
+    }
+
+    revalidatePath("/perfil");
+    revalidatePath("/dashboard");
+
+    redirect(
+        "/perfil?profesional_actualizado=1#profesionales-registrados",
+    );
+}
+
 export async function setPrimaryHealthProfessional(
     formData: FormData,
 ) {
@@ -289,7 +430,7 @@ const PROFESSIONAL_FUNCTIONS = new Set([
     "otro",
 ]);
 
-export async function updateHealthProfessionalFunction(
+export async function deleteHealthProfessional(
     formData: FormData,
 ) {
     const supabase = await createClient();
@@ -306,38 +447,26 @@ export async function updateHealthProfessionalFunction(
         formData.get("professional_id") ?? "",
     ).trim();
 
-    const funcionSeguimiento = String(
-        formData.get("funcion_seguimiento") ?? "",
-    ).trim();
-
-    if (
-        !UUID_PATTERN.test(professionalId) ||
-        !PROFESSIONAL_FUNCTIONS.has(
-            funcionSeguimiento,
-        )
-    ) {
+    if (!UUID_PATTERN.test(professionalId)) {
         redirect(
-            "/perfil?profesional_lista_error=funcion#profesionales-registrados",
+            "/perfil?profesional_lista_error=id#profesionales-registrados",
         );
     }
 
     const {
-        data: updatedProfessional,
+        data: deletedProfessional,
         error,
     } = await supabase
         .from("profesionales_salud")
-        .update({
-            funcion_seguimiento: funcionSeguimiento,
-            updated_at: new Date().toISOString(),
-        })
+        .delete()
         .eq("id", professionalId)
         .eq("paciente_id", user.id)
         .select("id")
         .maybeSingle();
 
-    if (error || !updatedProfessional) {
+    if (error || !deletedProfessional) {
         redirect(
-            "/perfil?profesional_lista_error=actualizar#profesionales-registrados",
+            "/perfil?profesional_lista_error=eliminar#profesionales-registrados",
         );
     }
 
@@ -345,6 +474,6 @@ export async function updateHealthProfessionalFunction(
     revalidatePath("/dashboard");
 
     redirect(
-        "/perfil?funcion_guardada=1#profesionales-registrados",
+        "/perfil?profesional_eliminado=1#profesionales-registrados",
     );
 }

@@ -14,6 +14,10 @@ type PerfilPageProps = {
         error?: string;
         profesional_guardado?: string;
         profesional_error?: string;
+        profesional_eliminado?: string;
+        profesional_lista_error?: string;
+        profesional_actualizado?: string;
+        principal_guardado?: string;
     }>;
 };
 const ERROR_MESSAGES: Record<string, string> = {
@@ -45,10 +49,42 @@ const PROFESSIONAL_ERROR_MESSAGES: Record<
         "No fue posible agregar el profesional. Intenta nuevamente.",
 };
 
+const PROFESSIONAL_LIST_ERROR_MESSAGES: Record<
+    string,
+    string
+> = {
+    id: "El identificador del profesional no es válido.",
+    eliminar:
+        "No fue posible eliminar el profesional.",
+    principal:
+        "No fue posible cambiar el profesional principal.",
+    editar_id:
+        "El identificador del profesional no es válido.",
+    editar_requeridos:
+        "Debes completar los nombres, apellidos y profesión.",
+    editar_longitud:
+        "Uno de los campos supera la longitud permitida.",
+    editar_email:
+        "El correo electrónico ingresado no es válido.",
+    editar_fecha:
+        "La fecha de inicio de atención no es válida.",
+    editar_funcion:
+        "La función de seguimiento seleccionada no es válida.",
+    editar_guardar:
+        "No fue posible actualizar los datos del profesional.",
+};
+
 export default async function PerfilPage({
     searchParams,
 }: PerfilPageProps) {
     const params = await searchParams;
+    const professionalListErrorMessage =
+        params.profesional_lista_error
+            ? PROFESSIONAL_LIST_ERROR_MESSAGES[
+            params.profesional_lista_error
+            ] ??
+            "No fue posible procesar los datos del profesional."
+            : null;
     const supabase = await createClient();
 
     const {
@@ -124,7 +160,42 @@ export default async function PerfilPage({
             />
 
             <main className="mx-auto w-full max-w-6xl px-5 py-10 sm:px-8">
-            {professionalsError ? (
+                {params.profesional_eliminado === "1" && (
+                    <div
+                        className="mb-6 border-l-4 border-kam-blue bg-kam-white px-5 py-4 text-sm font-semibold text-kam-navy shadow-[0_10px_30px_rgba(15,36,96,0.08)]"
+                        role="status"
+                    >
+                        El profesional fue eliminado correctamente.
+                    </div>
+                )}
+
+                {params.profesional_actualizado === "1" && (
+                    <div
+                        className="mb-6 border-l-4 border-kam-blue bg-kam-white px-5 py-4 text-sm font-semibold text-kam-navy shadow-[0_10px_30px_rgba(15,36,96,0.08)]"
+                        role="status"
+                    >
+                        Los datos del profesional fueron actualizados correctamente.
+                    </div>
+                )}
+
+                {params.principal_guardado === "1" && (
+                    <div
+                        className="mb-6 border-l-4 border-kam-blue bg-kam-white px-5 py-4 text-sm font-semibold text-kam-navy shadow-[0_10px_30px_rgba(15,36,96,0.08)]"
+                        role="status"
+                    >
+                        El profesional principal fue actualizado correctamente.
+                    </div>
+                )}
+
+                {professionalListErrorMessage && (
+                    <div
+                        className="mb-6 border-l-4 border-kam-magenta bg-kam-white px-5 py-4 text-sm font-semibold text-kam-wine shadow-[0_10px_30px_rgba(15,36,96,0.08)]"
+                        role="alert"
+                    >
+                        {professionalListErrorMessage}
+                    </div>
+                )}
+                {professionalsError ? (
                     <section className="mt-8 rounded-xl bg-kam-white p-8 text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
                         No fue posible cargar los profesionales de salud.
                     </section>
@@ -137,7 +208,7 @@ export default async function PerfilPage({
                     errorMessage={professionalErrorMessage}
                     saved={params.profesional_guardado === "1"}
                 />
-    
+
                 <div className="mt-8 grid gap-6 lg:grid-cols-[1.35fr_0.65fr]">
                     {profileError ? (
                         <section className="rounded-xl bg-kam-white p-8 text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
@@ -150,7 +221,7 @@ export default async function PerfilPage({
                             saved={params.guardado === "1"}
                         />
                     )}
-                        
+
                     <section className="rounded-xl bg-kam-white p-8 shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
                         <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
                             Equipo de atención
@@ -166,7 +237,7 @@ export default async function PerfilPage({
                         </p>
                     </section>
                 </div>
-               
+
             </main>
         </div>
     );

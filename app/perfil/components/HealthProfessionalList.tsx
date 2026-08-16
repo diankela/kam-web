@@ -1,7 +1,8 @@
 import {
     setPrimaryHealthProfessional,
-    updateHealthProfessionalFunction,
 } from "../actions";
+import DeleteProfessionalButton from "./DeleteProfessionalButton";
+import EditHealthProfessionalForm from "./EditHealthProfessionalForm";
 
 type HealthProfessional = {
     id: string;
@@ -110,22 +111,7 @@ export default function HealthProfessionalList({
                                             </span>
                                         )}
 
-                                    {!professional.es_principal && (
-                                        <form action={setPrimaryHealthProfessional}>
-                                            <input
-                                                name="professional_id"
-                                                type="hidden"
-                                                value={professional.id}
-                                            />
 
-                                            <button
-                                                className="rounded-lg border border-kam-magenta px-3 py-2 text-xs font-bold text-kam-wine transition hover:bg-kam-magenta hover:text-kam-white focus:outline-none focus:ring-4 focus:ring-kam-blue/20"
-                                                type="submit"
-                                            >
-                                                Marcar como principal
-                                            </button>
-                                        </form>
-                                    )}
                                 </div>
                             </div>
 
@@ -196,51 +182,33 @@ export default function HealthProfessionalList({
                                     </div>
                                 )}
                             </dl>
-                            <form
-                                action={updateHealthProfessionalFunction}
-                                className="mt-5 border-t border-kam-navy/10 pt-5"
-                            >
-                                <input
-                                    name="professional_id"
-                                    type="hidden"
-                                    value={professional.id}
+                            <EditHealthProfessionalForm
+                                professional={professional}
+                            />
+                            <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-kam-navy/10 pt-4">
+                                {!professional.es_principal && (
+                                    <form action={setPrimaryHealthProfessional}>
+                                        <input
+                                            name="professional_id"
+                                            type="hidden"
+                                            value={professional.id}
+                                        />
+
+                                        <button
+                                            className="rounded-lg border border-kam-magenta px-3 py-2 text-xs font-bold text-kam-wine transition hover:bg-kam-magenta hover:text-kam-white focus:outline-none focus:ring-4 focus:ring-kam-blue/20"
+                                            type="submit"
+                                        >
+                                            Marcar como principal
+                                        </button>
+                                    </form>
+                                )}
+                                <DeleteProfessionalButton
+                                    professionalId={professional.id}
+                                    professionalName={`${professional.nombres} ${professional.apellidos}`}
                                 />
 
-                                <label className="block text-xs font-bold uppercase tracking-wide text-kam-wine">
-                                    Función en el seguimiento
+                            </div>
 
-                                    <select
-                                        className="mt-2 h-11 w-full rounded-lg border border-kam-navy/20 bg-kam-white px-3 text-sm font-semibold text-kam-navy outline-none transition focus:border-kam-blue focus:ring-4 focus:ring-kam-blue/15"
-                                        defaultValue={
-                                            professional.funcion_seguimiento
-                                        }
-                                        name="funcion_seguimiento"
-                                    >
-                                        <option value="psicoterapia">
-                                            Psicoterapia o apoyo psicológico
-                                        </option>
-
-                                        <option value="control_medicamentos">
-                                            Control de medicamentos
-                                        </option>
-
-                                        <option value="atencion_general">
-                                            Atención general
-                                        </option>
-
-                                        <option value="otro">
-                                            Otra función
-                                        </option>
-                                    </select>
-                                </label>
-
-                                <button
-                                    className="mt-3 w-full rounded-lg bg-kam-blue px-4 py-2 text-sm font-bold text-kam-white transition hover:bg-kam-navy focus:outline-none focus:ring-4 focus:ring-kam-blue/20"
-                                    type="submit"
-                                >
-                                    Guardar función
-                                </button>
-                            </form>
                         </article>
                     ))}
                 </div>
