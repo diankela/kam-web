@@ -47,6 +47,8 @@ const PROFESSIONAL_ERROR_MESSAGES: Record<
         "Primero debes guardar tus datos personales.",
     guardar:
         "No fue posible agregar el profesional. Intenta nuevamente.",
+    tratamiento:
+        "El tratamiento o prefijo seleccionado no es válido.",
 };
 
 const PROFESSIONAL_LIST_ERROR_MESSAGES: Record<
@@ -72,6 +74,8 @@ const PROFESSIONAL_LIST_ERROR_MESSAGES: Record<
         "La función de seguimiento seleccionada no es válida.",
     editar_guardar:
         "No fue posible actualizar los datos del profesional.",
+    editar_tratamiento:
+        "El tratamiento o prefijo seleccionado no es válido.",
 };
 
 export default async function PerfilPage({
@@ -123,6 +127,7 @@ export default async function PerfilPage({
                 id,
                 nombres,
                 apellidos,
+                tratamiento_profesional,
                 profesion,
                 funcion_seguimiento,
                 especialidad,

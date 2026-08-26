@@ -137,7 +137,7 @@ export default async function DashboardPage() {
         supabase
             .from("profesionales_salud")
             .select(
-                "nombres, apellidos, profesion, especialidad",
+                "nombres, apellidos, tratamiento_profesional, profesion, especialidad",
             )
             .eq("paciente_id", user.id)
             .eq("es_principal", true)
@@ -148,7 +148,13 @@ export default async function DashboardPage() {
         paciente?.nombres?.trim().split(/\s+/)[0] || null;
 
     const nombreProfesionalPrincipal = profesionalPrincipal
-        ? `${profesionalPrincipal.nombres} ${profesionalPrincipal.apellidos}`.trim()
+        ? [
+            profesionalPrincipal.tratamiento_profesional,
+            profesionalPrincipal.nombres,
+            profesionalPrincipal.apellidos,
+        ]
+            .filter(Boolean)
+            .join(" ")
         : null;
 
     return (
@@ -174,9 +180,7 @@ export default async function DashboardPage() {
                     </h1>
 
                     <p className="mt-4 max-w-2xl leading-7 text-kam-navy/70">
-                        Este panel muestra únicamente la información asociada a tu
-                        cuenta. Supabase protege los registros mediante las políticas
-                        de seguridad por filas.
+                        Este panel muestra únicamente la información asociada a la cuenta del paciente.
                     </p>
 
                     <div className="mt-8 grid gap-5 md:grid-cols-2">

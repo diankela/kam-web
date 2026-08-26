@@ -127,6 +127,10 @@ export async function createHealthProfessional(
         formData.get("profesion") ?? "",
     ).trim();
 
+    const tratamientoProfesional = String(
+        formData.get("tratamiento_profesional") ?? "",
+    ).trim();
+
     const funcionSeguimiento = String(
         formData.get("funcion_seguimiento") ?? "otro",
     ).trim();
@@ -185,6 +189,7 @@ export async function createHealthProfessional(
             "/perfil?profesional_error=fecha#profesionales",
         );
     }
+
     if (
         !PROFESSIONAL_FUNCTIONS.has(
             funcionSeguimiento,
@@ -192,6 +197,17 @@ export async function createHealthProfessional(
     ) {
         redirect(
             "/perfil?profesional_error=funcion#profesionales",
+        );
+    }
+
+    if (
+        tratamientoProfesional &&
+        !PROFESSIONAL_PREFIXES.has(
+            tratamientoProfesional,
+        )
+    ) {
+        redirect(
+            "/perfil?profesional_error=tratamiento#profesionales",
         );
     }
 
@@ -215,6 +231,8 @@ export async function createHealthProfessional(
             nombres,
             apellidos,
             profesion,
+            tratamiento_profesional:
+                tratamientoProfesional || null,
             funcion_seguimiento: funcionSeguimiento,
             especialidad: especialidad || null,
             centro_salud: centroSalud || null,
@@ -265,6 +283,10 @@ export async function updateHealthProfessional(
 
     const profesion = String(
         formData.get("profesion") ?? "",
+    ).trim();
+
+    const tratamientoProfesional = String(
+        formData.get("tratamiento_profesional") ?? "",
     ).trim();
 
     const funcionSeguimiento = String(
@@ -342,6 +364,17 @@ export async function updateHealthProfessional(
         );
     }
 
+    if (
+        tratamientoProfesional &&
+        !PROFESSIONAL_PREFIXES.has(
+            tratamientoProfesional,
+        )
+    ) {
+        redirect(
+            "/perfil?profesional_lista_error=editar_tratamiento#profesionales-registrados",
+        );
+    }
+
     const {
         data: updatedProfessional,
         error,
@@ -351,6 +384,8 @@ export async function updateHealthProfessional(
             nombres,
             apellidos,
             profesion,
+            tratamiento_profesional:
+                tratamientoProfesional || null,
             funcion_seguimiento: funcionSeguimiento,
             especialidad: especialidad || null,
             centro_salud: centroSalud || null,
@@ -428,6 +463,14 @@ const PROFESSIONAL_FUNCTIONS = new Set([
     "control_medicamentos",
     "atencion_general",
     "otro",
+]);
+
+const PROFESSIONAL_PREFIXES = new Set([
+    "Dr.",
+    "Dra.",
+    "Psic.",
+    "Enf.",
+    "T.O.",
 ]);
 
 export async function deleteHealthProfessional(

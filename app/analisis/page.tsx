@@ -3,6 +3,7 @@ import AppHeader from "@/app/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
 import AnxietyLineChart from "./components/AnxietyLineChart";
 import DoseLineChart from "./components/DoseLineChart";
+import WellbeingLineChart from "./components/WellbeingLineChart";
 import EmotionFrequencyPanel from "./components/EmotionFrequencyPanel";
 import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
 import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
@@ -96,6 +97,99 @@ export default async function AnalisisPage({
                 nivel: evento.lvl_ansiedad ?? 0,
             };
         });
+
+    let historialBienestarQuery = supabase
+        .from("registros_bienestar")
+        .select("puntuacion, registrado_en")
+        .eq("user_id", user.id)
+        .gte("puntuacion", 1)
+        .lte("puntuacion", 10);
+
+    if (analysisStartDate) {
+        historialBienestarQuery =
+            historialBienestarQuery.gte(
+                "registrado_en",
+                `${analysisStartDate}T00:00:00Z`,
+            );
+    }
+
+    const {
+        data: historialBienestar,
+        error: historialBienestarError,
+    } = await historialBienestarQuery.order(
+        "registrado_en",
+        { ascending: true },
+    );
+
+    const formateadorFechaLocalBienestar =
+        new Intl.DateTimeFormat("en-CA", {
+            timeZone: "America/Santiago",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        });
+
+    const bienestarPorFecha = new Map<
+        string,
+        {
+            suma: number;
+            cantidad: number;
+        }
+    >();
+
+    for (const registro of historialBienestar ?? []) {
+        const puntuacion = Number(registro.puntuacion);
+
+        if (
+            !Number.isFinite(puntuacion) ||
+            puntuacion < 1 ||
+            puntuacion > 10
+        ) {
+            continue;
+        }
+
+        const fechaLocal =
+            formateadorFechaLocalBienestar.format(
+                new Date(registro.registrado_en),
+            );
+
+        const acumulado =
+            bienestarPorFecha.get(fechaLocal) ?? {
+                suma: 0,
+                cantidad: 0,
+            };
+
+        acumulado.suma += puntuacion;
+        acumulado.cantidad += 1;
+
+        bienestarPorFecha.set(
+            fechaLocal,
+            acumulado,
+        );
+    }
+
+    const datosGraficoBienestar = [
+        ...bienestarPorFecha.entries(),
+    ]
+        .filter(
+            ([fecha]) =>
+                !analysisStartDate ||
+                fecha >= analysisStartDate,
+        )
+        .sort(([fechaA], [fechaB]) =>
+            fechaA.localeCompare(fechaB),
+        )
+        .map(([fecha, resumen]) => ({
+            fecha: formateadorFechaGrafico.format(
+                new Date(`${fecha}T00:00:00Z`),
+            ),
+            bienestar:
+                Math.round(
+                    (resumen.suma /
+                        resumen.cantidad) *
+                    10,
+                ) / 10,
+        }));
 
     let historialDosisQuery = supabase
         .from("eventos")
@@ -195,6 +289,16 @@ export default async function AnalisisPage({
                 ) : (
                     <AnxietyLineChart
                         data={datosGraficoAnsiedad}
+                    />
+                )}
+                {historialBienestarError ? (
+                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                        No fue posible cargar el historial de
+                        bienestar.
+                    </section>
+                ) : (
+                    <WellbeingLineChart
+                        data={datosGraficoBienestar}
                     />
                 )}
                 {historialDosisError ? (

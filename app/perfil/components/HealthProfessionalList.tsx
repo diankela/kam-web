@@ -8,6 +8,7 @@ type HealthProfessional = {
     id: string;
     nombres: string;
     apellidos: string;
+    tratamiento_profesional: string | null;
     profesion: string;
     funcion_seguimiento: string;
     especialidad: string | null;
@@ -34,6 +35,18 @@ function formatDate(date: string) {
         dateStyle: "long",
         timeZone: "UTC",
     }).format(new Date(`${date}T00:00:00Z`));
+}
+
+function formatProfessionalName(
+    professional: HealthProfessional,
+) {
+    return [
+        professional.tratamiento_profesional,
+        professional.nombres,
+        professional.apellidos,
+    ]
+        .filter(Boolean)
+        .join(" ");
 }
 
 export default function HealthProfessionalList({
@@ -85,8 +98,7 @@ export default function HealthProfessionalList({
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <h3 className="text-xl font-bold text-kam-navy">
-                                        {professional.nombres}{" "}
-                                        {professional.apellidos}
+                                        {formatProfessionalName(professional)}
                                     </h3>
 
                                     <p className="mt-1 font-semibold text-kam-blue">
@@ -204,7 +216,9 @@ export default function HealthProfessionalList({
                                 )}
                                 <DeleteProfessionalButton
                                     professionalId={professional.id}
-                                    professionalName={`${professional.nombres} ${professional.apellidos}`}
+                                    professionalName={
+                                        formatProfessionalName(professional)
+                                    }
                                 />
 
                             </div>

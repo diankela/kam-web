@@ -29,11 +29,6 @@ const NAVIGATION_ITEMS = [
         label: "Análisis",
         href: "/analisis",
     },
-    {
-        id: "perfil",
-        label: "Perfil",
-        href: "/perfil",
-    },
 ] as const;
 
 export default async function AppHeader({
@@ -97,22 +92,38 @@ export default async function AppHeader({
                     </div>
 
                     <div className="flex items-center gap-3">
-                        <div className="hidden items-center gap-3 rounded-lg border border-kam-white/15 bg-kam-white/10 px-4 py-2 sm:flex">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-kam-blue font-bold">
-                                @
+                        <Link
+                            aria-current={
+                                activePage === "perfil"
+                                    ? "page"
+                                    : undefined
+                            }
+                            className={`flex items-center gap-3 rounded-lg border px-4 py-2 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-kam-blue/30 ${activePage === "perfil"
+                                    ? "border-kam-blue bg-kam-white/15"
+                                    : "border-kam-white/15 bg-kam-white/10 hover:border-kam-blue hover:bg-kam-white/15"
+                                }`}
+                            href="/perfil"
+                        >
+                            <div
+                                aria-hidden="true"
+                                className="flex h-8 w-8 items-center justify-center rounded-full bg-kam-blue font-bold text-kam-white"
+                            >
+                                {displayName
+                                    .trim()
+                                    .charAt(0)
+                                    .toUpperCase() || "P"}
                             </div>
 
                             <div>
                                 <p className="text-xs font-bold uppercase tracking-wide text-kam-white/60">
-                                    Sesión activa
+                                    Mi cuenta
                                 </p>
 
-                                <p className="max-w-52 truncate text-sm font-semibold">
-                                    {displayName}
+                                <p className="text-sm font-semibold text-kam-white">
+                                    Perfil
                                 </p>
                             </div>
-                        </div>
-
+                        </Link>
                         <form action={logout}>
                             <button
                                 className="rounded bg-kam-magenta px-4 py-3 text-sm font-semibold text-kam-white transition hover:bg-kam-wine focus:outline-none focus:ring-4 focus:ring-kam-blue/30"

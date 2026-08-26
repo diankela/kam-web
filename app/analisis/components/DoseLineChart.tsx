@@ -62,17 +62,23 @@ export default function DoseLineChart({
                     />
 
                     <XAxis
-                        dataKey="fecha"
                         axisLine={false}
+                        dataKey="fecha"
                         minTickGap={24}
-                        stroke="#0f2460"
+                        tick={{
+                            fill: "#0f2460",
+                            fontSize: 12,
+                        }}
                         tickFormatter={formatFecha}
                         tickLine={false}
                     />
 
                     <YAxis
                         axisLine={false}
-                        stroke="#0f2460"
+                        tick={{
+                            fill: "#0f2460",
+                            fontSize: 12,
+                        }}
                         tickFormatter={(valor: number) =>
                             formatDosis(valor)
                         }

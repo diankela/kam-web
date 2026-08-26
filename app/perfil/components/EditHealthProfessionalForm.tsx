@@ -4,6 +4,7 @@ type Professional = {
     id: string;
     nombres: string;
     apellidos: string;
+    tratamiento_profesional: string | null;
     profesion: string;
     funcion_seguimiento: string;
     especialidad: string | null;
@@ -24,6 +25,14 @@ const PROFESSION_OPTIONS = [
     "Neurólogo/a",
     "Terapeuta ocupacional",
     "Otro profesional",
+];
+
+const PROFESSIONAL_PREFIX_OPTIONS = [
+    "Dr.",
+    "Dra.",
+    "Psic.",
+    "Enf.",
+    "T.O.",
 ];
 
 const FUNCTION_OPTIONS = [
@@ -123,7 +132,32 @@ export default function EditHealthProfessionalForm({
                             ))}
                         </select>
                     </label>
+                    <label className={labelClassName}>
+                        Tratamiento o prefijo
+                        <select
+                            className={inputClassName}
+                            defaultValue={
+                                professional.tratamiento_profesional ??
+                                ""
+                            }
+                            name="tratamiento_profesional"
+                        >
+                            <option value="">
+                                Sin prefijo
+                            </option>
 
+                            {PROFESSIONAL_PREFIX_OPTIONS.map(
+                                (prefix) => (
+                                    <option
+                                        key={prefix}
+                                        value={prefix}
+                                    >
+                                        {prefix}
+                                    </option>
+                                ),
+                            )}
+                        </select>
+                    </label>
                     <label className={labelClassName}>
                         Función en el seguimiento
                         <select

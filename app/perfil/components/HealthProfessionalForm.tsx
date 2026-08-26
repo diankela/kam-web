@@ -138,7 +138,38 @@ export default function HealthProfessionalForm({
                                 </option>
                             </select>
                         </label>
+                        <label className={labelClassName}>
+                            Tratamiento o prefijo
+                            <select
+                                className={inputClassName}
+                                defaultValue=""
+                                name="tratamiento_profesional"
+                            >
+                                <option value="">
+                                    Sin prefijo
+                                </option>
 
+                                <option value="Dr.">
+                                    Dr.
+                                </option>
+
+                                <option value="Dra.">
+                                    Dra.
+                                </option>
+
+                                <option value="Psic.">
+                                    Psic.
+                                </option>
+
+                                <option value="Enf.">
+                                    Enf.
+                                </option>
+
+                                <option value="T.O.">
+                                    T.O.
+                                </option>
+                            </select>
+                        </label>
                         <label className={labelClassName}>
                             Función en el seguimiento
                             <select
