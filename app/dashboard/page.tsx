@@ -121,6 +121,36 @@ export default async function DashboardPage() {
         eventosConLugar ?? [],
     );
 
+    const [
+        { data: paciente, error: pacienteError },
+        {
+            data: profesionalPrincipal,
+            error: profesionalPrincipalError,
+        },
+    ] = await Promise.all([
+        supabase
+            .from("pacientes")
+            .select("nombres, diagnostico_principal")
+            .eq("user_id", user.id)
+            .maybeSingle(),
+
+        supabase
+            .from("profesionales_salud")
+            .select(
+                "nombres, apellidos, profesion, especialidad",
+            )
+            .eq("paciente_id", user.id)
+            .eq("es_principal", true)
+            .maybeSingle(),
+    ]);
+
+    const nombrePaciente =
+        paciente?.nombres?.trim().split(/\s+/)[0] || null;
+
+    const nombreProfesionalPrincipal = profesionalPrincipal
+        ? `${profesionalPrincipal.nombres} ${profesionalPrincipal.apellidos}`.trim()
+        : null;
+
     return (
         <div className="min-h-screen bg-kam-gray">
             <AppHeader
@@ -138,7 +168,9 @@ export default async function DashboardPage() {
                     </p>
 
                     <h1 className="mt-2 text-3xl font-bold text-kam-navy">
-                        Bienvenido a KAM
+                        {pacienteError || !nombrePaciente
+                            ? "Bienvenido a KAM"
+                            : `Bienvenido, ${nombrePaciente}`}
                     </h1>
 
                     <p className="mt-4 max-w-2xl leading-7 text-kam-navy/70">
@@ -147,6 +179,43 @@ export default async function DashboardPage() {
                         de seguridad por filas.
                     </p>
 
+                    <div className="mt-8 grid gap-5 md:grid-cols-2">
+                        <div className="border-l-4 border-kam-blue bg-kam-gray px-5 py-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-kam-wine">
+                                Diagnóstico informado
+                            </p>
+
+                            <p className="mt-2 font-semibold text-kam-navy">
+                                {pacienteError
+                                    ? "No disponible"
+                                    : paciente?.diagnostico_principal ||
+                                    "No informado"}
+                            </p>
+                        </div>
+
+                        <div className="border-l-4 border-kam-magenta bg-kam-gray px-5 py-4">
+                            <p className="text-xs font-bold uppercase tracking-wider text-kam-wine">
+                                Profesional principal
+                            </p>
+
+                            <p className="mt-2 font-semibold text-kam-navy">
+                                {profesionalPrincipalError
+                                    ? "No disponible"
+                                    : nombreProfesionalPrincipal ||
+                                    "No definido"}
+                            </p>
+
+                            {!profesionalPrincipalError &&
+                                profesionalPrincipal && (
+                                    <p className="mt-1 text-sm text-kam-navy/65">
+                                        {profesionalPrincipal.profesion}
+                                        {profesionalPrincipal.especialidad
+                                            ? ` · ${profesionalPrincipal.especialidad}`
+                                            : ""}
+                                    </p>
+                                )}
+                        </div>
+                    </div>
                     <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
                         <div className="border-l-4 border-kam-magenta bg-kam-gray px-5 py-4">
 
