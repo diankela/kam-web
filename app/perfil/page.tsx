@@ -17,6 +17,7 @@ type PerfilPageProps = {
         profesional_eliminado?: string;
         profesional_lista_error?: string;
         profesional_actualizado?: string;
+        profesional_invitado?: string;
         principal_guardado?: string;
     }>;
 };
@@ -76,6 +77,20 @@ const PROFESSIONAL_LIST_ERROR_MESSAGES: Record<
         "No fue posible actualizar los datos del profesional.",
     editar_tratamiento:
         "El tratamiento o prefijo seleccionado no es válido.",
+    invitacion_id:
+        "El identificador del profesional no es válido.",
+    invitacion_no_encontrado:
+        "No fue posible encontrar el profesional asociado a tu cuenta.",
+    invitacion_email:
+        "Debes registrar un correo electrónico válido antes de enviar la invitación.",
+    invitacion_vinculado:
+        "Este profesional ya tiene una cuenta vinculada.",
+    invitacion_configuracion:
+        "No fue posible preparar el enlace de invitación.",
+    invitacion_enviar:
+        "No fue posible enviar la invitación. Verifica que el correo no tenga una cuenta registrada.",
+    invitacion_vincular:
+        "No fue posible completar la vinculación de la cuenta profesional.",
 };
 
 export default async function PerfilPage({
@@ -133,6 +148,7 @@ export default async function PerfilPage({
                 especialidad,
                 centro_salud,
                 email,
+                profesional_user_id,
                 telefono,
                 fecha_inicio_atencion,
                 es_principal
@@ -191,7 +207,16 @@ export default async function PerfilPage({
                         El profesional principal fue actualizado correctamente.
                     </div>
                 )}
-
+                {params.profesional_invitado === "1" && (
+                    <div
+                        className="mb-6 border-l-4 border-kam-blue bg-kam-white px-5 py-4 text-sm font-semibold text-kam-navy shadow-[0_10px_30px_rgba(15,36,96,0.08)]"
+                        role="status"
+                    >
+                        La invitación fue enviada correctamente. El
+                        profesional podrá activar su cuenta desde el
+                        correo recibido.
+                    </div>
+                )}
                 {professionalListErrorMessage && (
                     <div
                         className="mb-6 border-l-4 border-kam-magenta bg-kam-white px-5 py-4 text-sm font-semibold text-kam-wine shadow-[0_10px_30px_rgba(15,36,96,0.08)]"

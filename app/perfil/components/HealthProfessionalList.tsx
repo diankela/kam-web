@@ -3,6 +3,7 @@ import {
 } from "../actions";
 import DeleteProfessionalButton from "./DeleteProfessionalButton";
 import EditHealthProfessionalForm from "./EditHealthProfessionalForm";
+import InviteProfessionalButton from "./InviteProfessionalButton";
 
 type HealthProfessional = {
     id: string;
@@ -14,6 +15,7 @@ type HealthProfessional = {
     especialidad: string | null;
     centro_salud: string | null;
     email: string | null;
+    profesional_user_id: string | null;
     telefono: string | null;
     fecha_inicio_atencion: string | null;
     es_principal: boolean;
@@ -112,6 +114,11 @@ export default function HealthProfessionalList({
                                             Principal
                                         </span>
                                     )}
+                                    {professional.profesional_user_id && (
+                                        <span className="rounded-full bg-kam-navy px-3 py-1 text-xs font-bold uppercase tracking-wide text-kam-white">
+                                            Cuenta vinculada
+                                        </span>
+                                    )}
 
                                     {!professional.es_principal &&
                                         professional.funcion_seguimiento !==
@@ -198,6 +205,27 @@ export default function HealthProfessionalList({
                                 professional={professional}
                             />
                             <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-kam-navy/10 pt-4">
+                                {!professional.profesional_user_id &&
+                                    professional.email && (
+                                        <InviteProfessionalButton
+                                            professionalEmail={
+                                                professional.email
+                                            }
+                                            professionalId={
+                                                professional.id
+                                            }
+                                            professionalName={formatProfessionalName(
+                                                professional,
+                                            )}
+                                        />
+                                    )}
+
+                                {!professional.profesional_user_id &&
+                                    !professional.email && (
+                                        <p className="mr-auto text-xs font-semibold text-kam-wine">
+                                            Agrega un correo para enviar una invitación.
+                                        </p>
+                                    )}
                                 {!professional.es_principal && (
                                     <form action={setPrimaryHealthProfessional}>
                                         <input

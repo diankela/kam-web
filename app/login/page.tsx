@@ -54,7 +54,7 @@ export default function LoginPage() {
             setMessageType("success");
             setMessage("Inicio de sesión correcto. Bienvenido a KAM.");
             setPassword("");
-            router.replace("/dashboard");
+            router.replace("/auth/redireccionar");
             router.refresh();
         } catch {
             setMessageType("error");

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
@@ -411,6 +411,142 @@ export async function updateHealthProfessional(
 
     redirect(
         "/perfil?profesional_actualizado=1#profesionales-registrados",
+    );
+}
+
+export async function inviteHealthProfessional(
+    formData: FormData,
+) {
+    const supabase = await createClient();
+
+    const {
+        data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+        redirect("/login");
+    }
+
+    const professionalId = String(
+        formData.get("professional_id") ?? "",
+    ).trim();
+
+    if (!UUID_PATTERN.test(professionalId)) {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_id#profesionales-registrados",
+        );
+    }
+
+    const {
+        data: professional,
+        error: professionalError,
+    } = await supabase
+        .from("profesionales_salud")
+        .select("id, email, profesional_user_id")
+        .eq("id", professionalId)
+        .eq("paciente_id", user.id)
+        .maybeSingle();
+
+    if (professionalError || !professional) {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_no_encontrado#profesionales-registrados",
+        );
+    }
+
+    const professionalEmail = String(
+        professional.email ?? "",
+    ).trim();
+
+    if (
+        !professionalEmail ||
+        !EMAIL_PATTERN.test(professionalEmail)
+    ) {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_email#profesionales-registrados",
+        );
+    }
+
+    if (professional.profesional_user_id) {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_vinculado#profesionales-registrados",
+        );
+    }
+
+    let redirectTo: string;
+
+    try {
+        const siteUrl = new URL(
+            process.env.KAM_SITE_URL ?? "",
+        );
+
+        if (
+            siteUrl.protocol !== "https:" &&
+            siteUrl.protocol !== "http:"
+        ) {
+            throw new Error("Protocolo no permitido.");
+        }
+
+        redirectTo = new URL(
+            "/auth/confirm",
+            siteUrl,
+        ).toString();
+    } catch {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_configuracion#profesionales-registrados",
+        );
+    }
+
+    const adminSupabase = createAdminClient();
+
+    const {
+        data: invitationData,
+        error: invitationError,
+    } =
+        await adminSupabase.auth.admin.inviteUserByEmail(
+            professionalEmail,
+            {
+                redirectTo,
+            },
+        );
+
+    const invitedUserId =
+        invitationData.user?.id;
+
+    if (invitationError || !invitedUserId) {
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_enviar#profesionales-registrados",
+        );
+    }
+
+    const {
+        data: linkedProfessional,
+        error: linkError,
+    } = await supabase
+        .from("profesionales_salud")
+        .update({
+            profesional_user_id: invitedUserId,
+            updated_at: new Date().toISOString(),
+        })
+        .eq("id", professionalId)
+        .eq("paciente_id", user.id)
+        .is("profesional_user_id", null)
+        .select("id")
+        .maybeSingle();
+
+    if (linkError || !linkedProfessional) {
+        await adminSupabase.auth.admin.deleteUser(
+            invitedUserId,
+        );
+
+        redirect(
+            "/perfil?profesional_lista_error=invitacion_vincular#profesionales-registrados",
+        );
+    }
+
+    revalidatePath("/perfil");
+
+    redirect(
+        "/perfil?profesional_invitado=1#profesionales-registrados",
     );
 }
 
