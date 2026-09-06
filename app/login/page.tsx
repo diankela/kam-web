@@ -1,8 +1,14 @@
 "use client";
 import Image from "next/image";
-import { type FormEvent, useState } from "react";
+import {
+    Suspense,
+    type FormEvent,
+    useState,
+} from "react";
+import LoginQueryFeedback from "./LoginQueryFeedback";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+
 
 
 export default function LoginPage() {
@@ -141,8 +147,6 @@ export default function LoginPage() {
                             </div>
                         </div>
                     </aside>
-
-                    {/* Formulario */}
                     {/* Formulario */}
                     <div className="p-8 sm:p-10 lg:p-12">
                         <div className="mb-6 flex justify-center">
@@ -211,7 +215,11 @@ export default function LoginPage() {
                                     value={password}
                                 />
                             </div>
-
+                            {!message && (
+                                <Suspense fallback={null}>
+                                    <LoginQueryFeedback />
+                                </Suspense>
+                            )}
                             {message && (
                                 <p
                                     aria-live="polite"
