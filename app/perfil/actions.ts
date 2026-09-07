@@ -518,9 +518,6 @@ export async function inviteHealthProfessional(
             {
                 code: invitationError?.code ?? null,
                 status: invitationError?.status ?? null,
-                message:
-                    invitationError?.message ??
-                    "Supabase no devolvió el usuario invitado.",
             },
         );
 

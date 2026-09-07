@@ -6,14 +6,18 @@ import {
 
 export function createAdminClient() {
     const supabaseUrl =
-        process.env.NEXT_PUBLIC_SUPABASE_URL;
+        process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
 
     const supabaseSecretKey =
-        process.env.SUPABASE_SECRET_KEY;
+        process.env.SUPABASE_SECRET_KEY?.trim();
 
-    if (!supabaseUrl || !supabaseSecretKey) {
+    if (
+        !supabaseUrl ||
+        !supabaseSecretKey ||
+        /\s/.test(supabaseSecretKey)
+    ) {
         throw new Error(
-            "Falta configurar el cliente administrativo de Supabase.",
+            "Falta configurar correctamente el cliente administrativo de Supabase.",
         );
     }
 
