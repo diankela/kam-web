@@ -513,6 +513,17 @@ export async function inviteHealthProfessional(
         invitationData.user?.id;
 
     if (invitationError || !invitedUserId) {
+        console.error(
+            "Error al enviar invitación profesional:",
+            {
+                code: invitationError?.code ?? null,
+                status: invitationError?.status ?? null,
+                message:
+                    invitationError?.message ??
+                    "Supabase no devolvió el usuario invitado.",
+            },
+        );
+
         redirect(
             "/perfil?profesional_lista_error=invitacion_enviar#profesionales-registrados",
         );
