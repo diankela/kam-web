@@ -17,10 +17,12 @@ export type WellbeingPoint = {
 
 type WellbeingLineChartProps = {
     data: WellbeingPoint[];
+    description?: string;
 };
 
 export default function WellbeingLineChart({
     data,
+    description,
 }: WellbeingLineChartProps) {
     return (
         <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
@@ -34,9 +36,10 @@ export default function WellbeingLineChart({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                    El gráfico muestra el promedio diario de las
-                    puntuaciones de bienestar registradas durante
-                    el período seleccionado.
+                    {description ??
+                        `El gráfico muestra el promedio diario de las
+                         puntuaciones de bienestar registradas durante
+                         el período seleccionado.`}
                 </p>
             </div>
 

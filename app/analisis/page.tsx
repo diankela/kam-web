@@ -8,29 +8,37 @@ import EmotionFrequencyPanel from "./components/EmotionFrequencyPanel";
 import SymptomFrequencyPanel from "./components/SymptomFrequencyPanel";
 import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
 import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
-import PeriodFilter from "./components/PeriodFilter";
-import {
-    getAnalysisStartDate,
-    parseAnalysisPeriod,
-} from "@/lib/analysis/analysisPeriod";
+import ClinicalPeriodFilter from "@/app/components/ClinicalPeriodFilter";
+import { resolveClinicalPeriod } from "@/lib/analysis/clinicalPeriod";
 
 type AnalisisPageProps = {
     searchParams: Promise<{
         periodo?: string | string[];
+        month?: string | string[];
+        year?: string | string[];
     }>;
 };
+
 export const dynamic = "force-dynamic";
 
 export default async function AnalisisPage({
     searchParams,
 }: AnalisisPageProps) {
-    const { periodo } = await searchParams;
+    const params = await searchParams;
 
-    const activePeriod =
-        parseAnalysisPeriod(periodo);
-
-    const analysisStartDate =
-        getAnalysisStartDate(activePeriod);
+    const {
+        activeMode,
+        currentYear,
+        selectedMonth,
+        selectedYear,
+        startDate,
+        endDate,
+        periodLabel,
+    } = resolveClinicalPeriod({
+        month: params.month,
+        period: params.periodo,
+        year: params.year,
+    });
 
     const supabase = await createClient();
 
@@ -41,25 +49,86 @@ export default async function AnalisisPage({
     if (!user) {
         redirect("/login");
     }
+    const [
+        { data: firstEvent },
+        { data: firstWellbeingRecord },
+    ] = await Promise.all([
+        supabase
+            .from("eventos")
+            .select("fecha")
+            .eq("user_id", user.id)
+            .order("fecha", {
+                ascending: true,
+            })
+            .limit(1)
+            .maybeSingle(),
 
-    let historialAnsiedadQuery = supabase
-        .from("eventos")
-        .select("fecha, hora, lvl_ansiedad")
-        .eq("user_id", user.id)
-        .not("lvl_ansiedad", "is", null);
+        supabase
+            .from("registros_bienestar")
+            .select("registrado_en")
+            .eq("user_id", user.id)
+            .order("registrado_en", {
+                ascending: true,
+            })
+            .limit(1)
+            .maybeSingle(),
+    ]);
 
-    if (analysisStartDate) {
-        historialAnsiedadQuery =
-            historialAnsiedadQuery.gte(
-                "fecha",
-                analysisStartDate,
-            );
-    }
+    const firstEventYear = firstEvent?.fecha
+        ? Number(firstEvent.fecha.slice(0, 4))
+        : null;
 
+    const firstWellbeingYear =
+        firstWellbeingRecord?.registrado_en
+            ? Number(
+                new Intl.DateTimeFormat(
+                    "en-US",
+                    {
+                        timeZone:
+                            "America/Santiago",
+                        year: "numeric",
+                    },
+                ).format(
+                    new Date(
+                        firstWellbeingRecord.registrado_en,
+                    ),
+                ),
+            )
+            : null;
+
+    const registeredYears = [
+        firstEventYear,
+        firstWellbeingYear,
+    ].filter(
+        (year): year is number =>
+            year !== null &&
+            Number.isInteger(year),
+    );
+
+    const firstRegisteredYear =
+        registeredYears.length > 0
+            ? Math.min(...registeredYears)
+            : currentYear;
+
+    const availableYears = Array.from(
+        {
+            length:
+                currentYear -
+                firstRegisteredYear +
+                1,
+        },
+        (_, index) => currentYear - index,
+    );
     const {
         data: historialAnsiedad,
         error: historialAnsiedadError,
-    } = await historialAnsiedadQuery
+    } = await supabase
+        .from("eventos")
+        .select("fecha, hora, lvl_ansiedad")
+        .eq("user_id", user.id)
+        .gte("fecha", startDate)
+        .lt("fecha", endDate)
+        .not("lvl_ansiedad", "is", null)
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false });
 
@@ -98,28 +167,26 @@ export default async function AnalisisPage({
             };
         });
 
-    let historialBienestarQuery = supabase
-        .from("registros_bienestar")
-        .select("puntuacion, registrado_en")
-        .eq("user_id", user.id)
-        .gte("puntuacion", 1)
-        .lte("puntuacion", 10);
-
-    if (analysisStartDate) {
-        historialBienestarQuery =
-            historialBienestarQuery.gte(
-                "registrado_en",
-                `${analysisStartDate}T00:00:00Z`,
-            );
-    }
-
     const {
         data: historialBienestar,
         error: historialBienestarError,
-    } = await historialBienestarQuery.order(
-        "registrado_en",
-        { ascending: true },
-    );
+    } = await supabase
+        .from("registros_bienestar")
+        .select("puntuacion, registrado_en")
+        .eq("user_id", user.id)
+        .gte(
+            "registrado_en",
+            `${startDate}T00:00:00Z`,
+        )
+        .lt(
+            "registrado_en",
+            `${endDate}T05:00:00Z`,
+        )
+        .gte("puntuacion", 1)
+        .lte("puntuacion", 10)
+        .order("registrado_en", {
+            ascending: true,
+        });
 
     const formateadorFechaLocalBienestar =
         new Intl.DateTimeFormat("en-CA", {
@@ -152,6 +219,12 @@ export default async function AnalisisPage({
             formateadorFechaLocalBienestar.format(
                 new Date(registro.registrado_en),
             );
+        if (
+            fechaLocal < startDate ||
+            fechaLocal >= endDate
+        ) {
+            continue;
+        }
 
         const acumulado =
             bienestarPorFecha.get(fechaLocal) ?? {
@@ -173,8 +246,8 @@ export default async function AnalisisPage({
     ]
         .filter(
             ([fecha]) =>
-                !analysisStartDate ||
-                fecha >= analysisStartDate,
+                fecha >= startDate &&
+                fecha < endDate,
         )
         .sort(([fechaA], [fechaB]) =>
             fechaA.localeCompare(fechaB),
@@ -191,24 +264,16 @@ export default async function AnalisisPage({
                 ) / 10,
         }));
 
-    let historialDosisQuery = supabase
-        .from("eventos")
-        .select("fecha, dosis_medicamento")
-        .eq("user_id", user.id)
-        .not("dosis_medicamento", "is", null);
-
-    if (analysisStartDate) {
-        historialDosisQuery =
-            historialDosisQuery.gte(
-                "fecha",
-                analysisStartDate,
-            );
-    }
-
     const {
         data: historialDosis,
         error: historialDosisError,
-    } = await historialDosisQuery
+    } = await supabase
+        .from("eventos")
+        .select("fecha, dosis_medicamento")
+        .eq("user_id", user.id)
+        .gte("fecha", startDate)
+        .lt("fecha", endDate)
+        .not("dosis_medicamento", "is", null)
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false });
 
@@ -223,23 +288,15 @@ export default async function AnalisisPage({
             ),
         }));
 
-    let eventosParaAnalisisQuery = supabase
-        .from("eventos")
-        .select("id, descripcion, est_emo_pre")
-        .eq("user_id", user.id);
-
-    if (analysisStartDate) {
-        eventosParaAnalisisQuery =
-            eventosParaAnalisisQuery.gte(
-                "fecha",
-                analysisStartDate,
-            );
-    }
-
     const {
         data: eventosParaAnalisis,
         error: analisisRegistrosError,
-    } = await eventosParaAnalisisQuery
+    } = await supabase
+        .from("eventos")
+        .select("id, descripcion, est_emo_pre")
+        .eq("user_id", user.id)
+        .gte("fecha", startDate)
+        .lt("fecha", endDate)
         .order("fecha", { ascending: false })
         .order("hora", { ascending: false });
 
@@ -277,10 +334,15 @@ export default async function AnalisisPage({
                         En esta página reuniremos los gráficos
                         y análisis detallados de tus registros.
                     </p>
-                    <PeriodFilter
-                        activePeriod={activePeriod}
-                    />
+
                 </section>
+                <ClinicalPeriodFilter
+                    activeMode={activeMode}
+                    basePath="/analisis"
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                    years={availableYears}
+                />
                 {historialAnsiedadError ? (
                     <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
                         No fue posible cargar el historial de
@@ -289,6 +351,7 @@ export default async function AnalisisPage({
                 ) : (
                     <AnxietyLineChart
                         data={datosGraficoAnsiedad}
+                        description={`Evolución de los niveles de ansiedad registrados durante ${periodLabel}.`}
                     />
                 )}
                 {historialBienestarError ? (
@@ -299,6 +362,7 @@ export default async function AnalisisPage({
                 ) : (
                     <WellbeingLineChart
                         data={datosGraficoBienestar}
+                        description={`Promedio diario de las puntuaciones de bienestar registradas durante ${periodLabel}.`}
                     />
                 )}
                 {historialDosisError ? (
@@ -317,9 +381,8 @@ export default async function AnalisisPage({
                         </h2>
 
                         <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                            El gráfico muestra los registros del período
-                            seleccionado que contienen una dosis de
-                            medicamento.
+                            Dosis registradas durante{" "}
+                            {periodLabel}.
                         </p>
 
                         <div className="mt-6">

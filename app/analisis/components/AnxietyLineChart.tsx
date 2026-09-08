@@ -17,10 +17,12 @@ export type AnxietyPoint = {
 
 type AnxietyLineChartProps = {
     data: AnxietyPoint[];
+    description?: string;
 };
 
 export default function AnxietyLineChart({
     data,
+    description,
 }: AnxietyLineChartProps) {
     return (
         <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
@@ -34,7 +36,8 @@ export default function AnxietyLineChart({
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                    El gráfico muestra los registros del período seleccionado que contienen un nivel de ansiedad.
+                    {description ??
+                        "El gráfico muestra los registros del período seleccionado que contienen un nivel de ansiedad."}
                 </p>
             </div>
 

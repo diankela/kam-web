@@ -4,6 +4,9 @@ type MonthYearFilterProps = {
     selectedMonth: number;
     selectedYear: number;
     years: number[];
+    patientId?: string;
+    resetHref?: string;
+    showReset?: boolean;
 };
 
 const MONTHS = [
@@ -25,12 +28,22 @@ export default function MonthYearFilter({
     selectedMonth,
     selectedYear,
     years,
+    patientId,
+    resetHref = "/eventos",
+    showReset = true,
 }: MonthYearFilterProps) {
     return (
         <form
             className="mt-6 flex flex-col gap-4 rounded-lg bg-kam-gray p-5 sm:flex-row sm:items-end"
             method="get"
         >
+            {patientId && (
+                <input
+                    name="paciente"
+                    type="hidden"
+                    value={patientId}
+                />
+            )}
             <label className="flex flex-1 flex-col gap-2">
                 <span className="text-xs font-bold uppercase tracking-wide text-kam-wine">
                     Mes
@@ -84,12 +97,14 @@ export default function MonthYearFilter({
                 Ver registros
             </button>
 
-            <Link
-                className="rounded border border-kam-navy/20 bg-kam-white px-5 py-3 text-center font-semibold text-kam-navy transition hover:border-kam-magenta hover:text-kam-magenta"
-                href="/eventos"
-            >
-                Mes actual
-            </Link>
+            {showReset && (
+                <Link
+                    className="rounded border border-kam-navy/20 bg-kam-white px-5 py-3 text-center font-semibold text-kam-navy transition hover:border-kam-magenta hover:text-kam-magenta"
+                    href={resetHref}
+                >
+                    Mes actual
+                </Link>
+            )}
         </form>
     );
 }

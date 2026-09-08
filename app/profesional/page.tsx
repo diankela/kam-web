@@ -1,12 +1,43 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
-
+import Link from "next/link";
+import WellbeingLineChart from "@/app/analisis/components/WellbeingLineChart";
+import ClinicalPeriodFilter from "@/app/components/ClinicalPeriodFilter";
+import { resolveClinicalPeriod } from "@/lib/analysis/clinicalPeriod";
+import EventRecordCard from "@/app/eventos/components/EventRecordCard";
 import { logout } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/server";
+import AnxietyLineChart from "@/app/analisis/components/AnxietyLineChart";
+import DoseLineChart from "@/app/analisis/components/DoseLineChart";
+
+type ProfessionalPageProps = {
+    searchParams: Promise<{
+        paciente?: string | string[];
+        month?: string | string[];
+        year?: string | string[];
+        periodo?: string | string[];
+    }>;
+};
 
 export const dynamic = "force-dynamic";
 
-export default async function ProfessionalPage() {
+export default async function ProfessionalPage({
+    searchParams,
+}: ProfessionalPageProps) {
+    const params = await searchParams;
+    const {
+        activeMode,
+        currentYear,
+        selectedMonth,
+        selectedYear,
+        startDate,
+        endDate,
+        periodLabel,
+    } = resolveClinicalPeriod({
+        month: params.month,
+        period: params.periodo,
+        year: params.year,
+    });
     const supabase = await createClient();
 
     const {
@@ -26,6 +57,7 @@ export default async function ProfessionalPage() {
             `
                 id,
                 nombres,
+                paciente_id,
                 apellidos,
                 tratamiento_profesional,
                 profesion
@@ -51,6 +83,331 @@ export default async function ProfessionalPage() {
         .filter(Boolean)
         .join(" ");
 
+    const patientIds = Array.from(
+        new Set(
+            professionalLinks
+                .map((link) => link.paciente_id)
+                .filter(
+                    (patientId): patientId is string =>
+                        typeof patientId === "string" &&
+                        patientId.length > 0,
+                ),
+        ),
+    );
+
+    const authorizedPatientsResult =
+        patientIds.length > 0
+            ? await supabase
+                .from("pacientes")
+                .select(
+                    `
+                              user_id,
+                              nombres,
+                              apellido_paterno,
+                              apellido_materno,
+                              fecha_nacimiento,
+                              diagnostico_principal,
+                              fecha_diagnostico
+                          `,
+                )
+                .in("user_id", patientIds)
+                .order("apellido_paterno", {
+                    ascending: true,
+                })
+            : {
+                data: [],
+                error: null,
+            };
+
+    const {
+        data: authorizedPatients,
+        error: patientsError,
+    } = authorizedPatientsResult;
+    const requestedPatientId =
+        typeof params.paciente === "string"
+            ? params.paciente
+            : null;
+
+    const selectedPatientId =
+        requestedPatientId &&
+            patientIds.includes(requestedPatientId)
+            ? requestedPatientId
+            : patientIds[0] ?? null;
+
+    const selectedPatient =
+        authorizedPatients?.find(
+            (patient) =>
+                patient.user_id === selectedPatientId,
+        ) ?? null;
+
+    const selectedPatientName = selectedPatient
+        ? [
+            selectedPatient.nombres,
+            selectedPatient.apellido_paterno,
+            selectedPatient.apellido_materno,
+        ]
+            .filter(Boolean)
+            .join(" ")
+        : null;
+    const firstEventResult = selectedPatientId
+        ? await supabase
+            .from("eventos")
+            .select("fecha")
+            .eq("user_id", selectedPatientId)
+            .order("fecha", {
+                ascending: true,
+            })
+            .limit(1)
+            .maybeSingle()
+        : {
+            data: null,
+            error: null,
+        };
+
+    const parsedFirstYear =
+        firstEventResult.data?.fecha
+            ? Number(
+                firstEventResult.data.fecha.slice(
+                    0,
+                    4,
+                ),
+            )
+            : currentYear;
+
+    const firstRegisteredYear =
+        Number.isInteger(parsedFirstYear) &&
+            parsedFirstYear <= currentYear
+            ? parsedFirstYear
+            : currentYear;
+
+    const availableYears = Array.from(
+        {
+            length:
+                currentYear -
+                firstRegisteredYear +
+                1,
+        },
+        (_, index) => currentYear - index,
+    );
+    const recentEventsResult = selectedPatientId
+        ? await supabase
+            .from("eventos")
+            .select(
+                `
+                  id,
+                  fecha,
+                  hora,
+                  dosis_medicamento,
+                  nombre_psicotropico,
+                  lugar,
+                  descripcion,
+                  duracion_aprox,
+                  lvl_ansiedad,
+                  causas,
+                  imp_act_diarias,
+                  est_emo_pre
+              `,
+            )
+            .eq("user_id", selectedPatientId)
+            .gte("fecha", startDate)
+            .lt("fecha", endDate)
+            .order("fecha", {
+                ascending: false,
+            })
+            .order("hora", {
+                ascending: false,
+            })
+        : {
+            data: [],
+            error: null,
+        };
+
+    const wellbeingResult = selectedPatientId
+        ? await supabase
+            .from("registros_bienestar")
+            .select("puntuacion, registrado_en")
+            .eq("user_id", selectedPatientId)
+            .gte(
+                "registrado_en",
+                `${startDate}T00:00:00Z`,
+            )
+            .lt(
+                "registrado_en",
+                `${endDate}T05:00:00Z`,
+            )
+            .gte("puntuacion", 1)
+            .lte("puntuacion", 10)
+            .order("registrado_en", {
+                ascending: true,
+            })
+        : {
+            data: [],
+            error: null,
+        };
+
+    const {
+        data: wellbeingRecords,
+        error: wellbeingError,
+    } = wellbeingResult;
+
+    const localDateFormatter = new Intl.DateTimeFormat(
+        "en-CA",
+        {
+            timeZone: "America/Santiago",
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        },
+    );
+
+    const chartDateFormatter = new Intl.DateTimeFormat(
+        "es-CL",
+        {
+            timeZone: "UTC",
+            day: "2-digit",
+            month: "short",
+            year: "2-digit",
+        },
+    );
+
+    const wellbeingByDate = new Map<
+        string,
+        {
+            total: number;
+            count: number;
+        }
+    >();
+
+    for (const record of wellbeingRecords ?? []) {
+        const score = Number(record.puntuacion);
+
+        if (
+            !Number.isFinite(score) ||
+            score < 1 ||
+            score > 10
+        ) {
+            continue;
+        }
+
+        const localDate = localDateFormatter.format(
+            new Date(record.registrado_en),
+        );
+        if (
+            localDate < startDate ||
+            localDate >= endDate
+        ) {
+            continue;
+        }
+
+        const accumulated =
+            wellbeingByDate.get(localDate) ?? {
+                total: 0,
+                count: 0,
+            };
+
+        accumulated.total += score;
+        accumulated.count += 1;
+
+        wellbeingByDate.set(localDate, accumulated);
+    }
+
+    const wellbeingChartData = [
+        ...wellbeingByDate.entries(),
+    ]
+
+        .sort(([dateA], [dateB]) =>
+            dateA.localeCompare(dateB),
+        )
+        .map(([date, summary]) => ({
+            fecha: chartDateFormatter.format(
+                new Date(`${date}T00:00:00Z`),
+            ),
+            bienestar:
+                Math.round(
+                    (summary.total / summary.count) * 10,
+                ) / 10,
+        }));
+    const {
+        data: recentEvents,
+        error: recentEventsError,
+    } = recentEventsResult;
+    const anxietyResult = selectedPatientId
+        ? await supabase
+            .from("eventos")
+            .select("fecha, hora, lvl_ansiedad")
+            .eq("user_id", selectedPatientId)
+            .gte("fecha", startDate)
+            .lt("fecha", endDate)
+            .not("lvl_ansiedad", "is", null)
+            .order("fecha", {
+                ascending: true,
+            })
+            .order("hora", {
+                ascending: true,
+            })
+        : {
+            data: [],
+            error: null,
+        };
+
+    const {
+        data: anxietyRecords,
+        error: anxietyError,
+    } = anxietyResult;
+
+    const anxietyChartData = (
+        anxietyRecords ?? []
+    ).map((event) => {
+        const formattedDate =
+            chartDateFormatter.format(
+                new Date(
+                    `${event.fecha}T00:00:00Z`,
+                ),
+            );
+
+        const formattedTime = event.hora
+            ? event.hora.slice(0, 5)
+            : "";
+
+        return {
+            fecha: [
+                formattedDate,
+                formattedTime,
+            ]
+                .filter(Boolean)
+                .join(" "),
+            nivel: event.lvl_ansiedad ?? 0,
+        };
+    });
+    const doseResult = selectedPatientId
+        ? await supabase
+            .from("eventos")
+            .select("fecha, dosis_medicamento")
+            .eq("user_id", selectedPatientId)
+            .gte("fecha", startDate)
+            .lt("fecha", endDate)
+            .not("dosis_medicamento", "is", null)
+            .order("fecha", {
+                ascending: true,
+            })
+        : {
+            data: [],
+            error: null,
+        };
+
+    const {
+        data: doseRecords,
+        error: doseError,
+    } = doseResult;
+
+    const doseChartData = (
+        doseRecords ?? []
+    ).map((event) => ({
+        fecha: event.fecha,
+        dosis: Number(
+            event.dosis_medicamento ?? 0,
+        ),
+    }));
     return (
         <div className="min-h-screen bg-kam-gray">
             <header className="bg-kam-navy text-kam-white">
@@ -149,16 +506,233 @@ export default async function ProfessionalPage() {
                 </section>
 
                 <section className="mt-8 rounded-xl border border-kam-blue/20 bg-kam-white p-8 shadow-[0_16px_45px_rgba(15,36,96,0.08)]">
-                    <h2 className="text-xl font-bold text-kam-navy">
-                        Visualización clínica en preparación
-                    </h2>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                        <div>
+                            <p className="text-sm font-bold uppercase tracking-wider text-kam-blue">
+                                Acceso de solo lectura
+                            </p>
 
-                    <p className="mt-3 max-w-3xl leading-7 text-kam-navy/70">
-                        En la siguiente etapa se incorporarán los
-                        pacientes autorizados y sus registros de
-                        seguimiento en modalidad de solo lectura.
-                    </p>
+                            <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                                Pacientes autorizados
+                            </h2>
+
+                            <p className="mt-3 max-w-3xl leading-7 text-kam-navy/70">
+                                Solo se muestran pacientes que mantienen un
+                                vínculo autorizado con tu cuenta profesional.
+                            </p>
+                        </div>
+
+                        {!patientsError && (
+                            <p className="text-sm font-semibold text-kam-navy/60">
+                                {authorizedPatients?.length ?? 0}{" "}
+                                {authorizedPatients?.length === 1
+                                    ? "paciente"
+                                    : "pacientes"}
+                            </p>
+                        )}
+                    </div>
+
+                    {patientsError ? (
+                        <p
+                            className="mt-6 border-l-4 border-kam-magenta bg-kam-gray px-5 py-4 font-semibold text-kam-wine"
+                            role="alert"
+                        >
+                            No fue posible cargar los pacientes autorizados.
+                        </p>
+                    ) : authorizedPatients?.length === 0 ? (
+                        <p className="mt-6 rounded-lg bg-kam-gray px-5 py-8 text-center text-kam-navy/70">
+                            No existen pacientes vinculados disponibles.
+                        </p>
+                    ) : (
+                        <div className="mt-6 grid gap-5 md:grid-cols-2">
+                            {authorizedPatients?.map((patient) => {
+                                const patientName = [
+                                    patient.nombres,
+                                    patient.apellido_paterno,
+                                    patient.apellido_materno,
+                                ]
+                                    .filter(Boolean)
+                                    .join(" ");
+
+                                const isSelected =
+                                    patient.user_id === selectedPatientId;
+
+                                return (
+                                    <Link
+                                        key={patient.user_id}
+                                        aria-current={
+                                            isSelected ? "true" : undefined
+                                        }
+                                        className={`block rounded-xl border p-6 transition ${isSelected
+                                            ? "border-kam-blue bg-kam-blue/5 shadow-[0_8px_25px_rgba(0,122,255,0.12)]"
+                                            : "border-kam-navy/10 bg-kam-gray hover:border-kam-blue"
+                                            }`}
+                                        href={`/profesional?paciente=${encodeURIComponent(
+                                            patient.user_id,
+                                        )}`}
+                                    >
+                                        <article>
+                                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                                <p className="text-xs font-bold uppercase tracking-wider text-kam-magenta">
+                                                    Paciente vinculado
+                                                </p>
+
+                                                {isSelected && (
+                                                    <span className="rounded-full bg-kam-blue px-3 py-1 text-xs font-bold text-kam-white">
+                                                        Mostrando registros
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <h3 className="mt-2 text-xl font-bold text-kam-navy">
+                                                {patientName ||
+                                                    "Nombre no informado"}
+                                            </h3>
+
+                                            <div className="mt-5 border-t border-kam-navy/10 pt-5">
+                                                <p className="text-xs font-bold uppercase tracking-wide text-kam-wine">
+                                                    Diagnóstico informado
+                                                </p>
+
+                                                <p className="mt-2 font-semibold text-kam-navy">
+                                                    {patient.diagnostico_principal ||
+                                                        "No informado"}
+                                                </p>
+
+                                                <p className="mt-2 text-xs leading-5 text-kam-navy/60">
+                                                    Información declarada por el
+                                                    paciente y no validada clínicamente
+                                                    por KAM.
+                                                </p>
+                                            </div>
+
+                                        </article>
+
+                                    </Link>
+
+                                );
+                            })}
+
+                        </div>
+                    )}
                 </section>
+                {selectedPatientId && (
+                    <ClinicalPeriodFilter
+                        activeMode={activeMode}
+                        basePath="/profesional"
+                        patientId={selectedPatientId}
+                        selectedMonth={selectedMonth}
+                        selectedYear={selectedYear}
+                        years={availableYears}
+                    />
+                )}
+                {selectedPatientId &&
+                    (wellbeingError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
+                            No fue posible cargar el historial de
+                            bienestar del paciente.
+                        </section>
+                    ) : (
+                        <WellbeingLineChart
+                            data={wellbeingChartData}
+                            description={`Promedio diario de las puntuaciones de bienestar registradas por el paciente durante ${periodLabel}.`}
+                        />
+                    ))}
+                {selectedPatientId &&
+                    (anxietyError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
+                            No fue posible cargar el historial de
+                            ansiedad del paciente.
+                        </section>
+                    ) : (
+                        <AnxietyLineChart
+                            data={anxietyChartData}
+                            description={`Evolución de los niveles de ansiedad registrados por el paciente durante ${periodLabel}.`}
+                        />
+                    ))}
+                {selectedPatientId &&
+                    (doseError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
+                            No fue posible cargar el historial de
+                            dosis del paciente.
+                        </section>
+                    ) : (
+                        <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
+                            <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
+                                Seguimiento farmacológico
+                            </p>
+
+                            <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                                Evolución de las dosis
+                            </h2>
+
+                            <p className="mt-2 text-sm leading-6 text-kam-navy/70">
+                                Dosis registradas por el paciente durante{" "}
+                                {periodLabel}.
+                            </p>
+
+                            <div className="mt-6">
+                                <DoseLineChart
+                                    data={doseChartData}
+                                />
+                            </div>
+                        </section>
+                    ))}
+                {selectedPatientId && (
+                    <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.10)] sm:p-8">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                            <div>
+                                <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
+                                    Seguimiento clínico
+                                </p>
+
+                                <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                                    Eventos del período
+                                </h2>
+
+                                <p className="mt-2 text-sm text-kam-navy/70">
+                                    Registros de{" "}
+                                    {selectedPatientName ||
+                                        "este paciente"}{" "}
+                                    correspondientes a {periodLabel}.
+                                </p>
+                            </div>
+
+                            {!recentEventsError && (
+                                <p className="text-sm font-semibold text-kam-navy/60">
+                                    {recentEvents?.length ?? 0}{" "}
+                                    {recentEvents?.length === 1
+                                        ? "registro"
+                                        : "registros"}
+                                </p>
+                            )}
+                        </div>
+
+                        {recentEventsError ? (
+                            <p
+                                className="mt-6 border-l-4 border-kam-magenta bg-kam-gray px-5 py-4 font-semibold text-kam-wine"
+                                role="alert"
+                            >
+                                No fue posible cargar los eventos del
+                                paciente.
+                            </p>
+                        ) : recentEvents?.length === 0 ? (
+                            <p className="mt-6 rounded-lg bg-kam-gray px-5 py-8 text-center text-kam-navy/70">
+                                Este paciente todavía no tiene eventos
+                                registrados.
+                            </p>
+                        ) : (
+                            <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                                {recentEvents?.map((event) => (
+                                    <EventRecordCard
+                                        key={event.id}
+                                        event={event}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                )}
             </main>
         </div>
     );
