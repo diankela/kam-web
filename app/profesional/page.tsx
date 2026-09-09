@@ -9,6 +9,11 @@ import { logout } from "@/app/actions/auth";
 import { createClient } from "@/lib/supabase/server";
 import AnxietyLineChart from "@/app/analisis/components/AnxietyLineChart";
 import DoseLineChart from "@/app/analisis/components/DoseLineChart";
+import EmotionFrequencyPanel from "@/app/analisis/components/EmotionFrequencyPanel";
+import SymptomFrequencyPanel from "@/app/analisis/components/SymptomFrequencyPanel";
+import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
+import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
+import ClinicalSummaryMetrics from "@/app/components/ClinicalSummaryMetrics";
 
 type ProfessionalPageProps = {
     searchParams: Promise<{
@@ -149,6 +154,23 @@ export default async function ProfessionalPage({
             .filter(Boolean)
             .join(" ")
         : null;
+    const totalEventsResult = selectedPatientId
+        ? await supabase
+            .from("eventos")
+            .select("*", {
+                count: "exact",
+                head: true,
+            })
+            .eq("user_id", selectedPatientId)
+        : {
+            count: 0,
+            error: null,
+        };
+
+    const {
+        count: totalEvents,
+        error: totalEventsError,
+    } = totalEventsResult;
     const firstEventResult = selectedPatientId
         ? await supabase
             .from("eventos")
@@ -408,6 +430,45 @@ export default async function ProfessionalPage({
             event.dosis_medicamento ?? 0,
         ),
     }));
+    const symptomSummary = countSymptomFrequencies(
+        recentEvents ?? [],
+    );
+
+    const emotionSummary = countEmotionFrequencies(
+        recentEvents ?? [],
+    );
+    const totalDoseInPeriod =
+        !doseError &&
+            doseRecords &&
+            doseRecords.length > 0
+            ? doseRecords.reduce(
+                (total, event) =>
+                    total +
+                    Number(
+                        event.dosis_medicamento ?? 0,
+                    ),
+                0,
+            )
+            : null;
+
+    const formattedTotalDose =
+        totalDoseInPeriod !== null
+            ? new Intl.NumberFormat("es-CL", {
+                maximumFractionDigits: 2,
+            }).format(totalDoseInPeriod)
+            : null;
+
+    const averageAnxiety =
+        !anxietyError &&
+            anxietyRecords &&
+            anxietyRecords.length > 0
+            ? anxietyRecords.reduce(
+                (total, event) =>
+                    total +
+                    Number(event.lvl_ansiedad ?? 0),
+                0,
+            ) / anxietyRecords.length
+            : null;
     return (
         <div className="min-h-screen bg-kam-gray">
             <header className="bg-kam-navy text-kam-white">
@@ -626,6 +687,29 @@ export default async function ProfessionalPage({
                         years={availableYears}
                     />
                 )}
+                {selectedPatientId && (
+                    <ClinicalSummaryMetrics
+                        averageAnxiety={averageAnxiety}
+                        averageAnxietyError={Boolean(
+                            anxietyError,
+                        )}
+                        formattedTotalDose={
+                            formattedTotalDose
+                        }
+                        periodEvents={
+                            recentEvents?.length ?? 0
+                        }
+                        periodEventsError={Boolean(
+                            recentEventsError,
+                        )}
+                        periodLabel={periodLabel}
+                        totalDoseError={Boolean(doseError)}
+                        totalEvents={totalEvents}
+                        totalEventsError={Boolean(
+                            totalEventsError,
+                        )}
+                    />
+                )}
                 {selectedPatientId &&
                     (wellbeingError ? (
                         <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
@@ -678,6 +762,17 @@ export default async function ProfessionalPage({
                             </div>
                         </section>
                     ))}
+                {selectedPatientId && !recentEventsError && (
+                    <>
+                        <SymptomFrequencyPanel
+                            summary={symptomSummary}
+                        />
+
+                        <EmotionFrequencyPanel
+                            summary={emotionSummary}
+                        />
+                    </>
+                )}
                 {selectedPatientId && (
                     <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.10)] sm:p-8">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
