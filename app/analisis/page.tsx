@@ -10,12 +10,22 @@ import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies"
 import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
 import ClinicalPeriodFilter from "@/app/components/ClinicalPeriodFilter";
 import { resolveClinicalPeriod } from "@/lib/analysis/clinicalPeriod";
+import ClinicalAnalysisMenu from "@/app/components/ClinicalAnalysisMenu";
+import {
+    resolveClinicalAnalysisView,
+} from "@/lib/analysis/clinicalView";
+import MoodTrackingPanel from "@/app/components/MoodTrackingPanel";
+import {
+    filterMoodTrackingByDateRange,
+    type MoodTrackingRecord,
+} from "@/lib/analysis/moodTracking";
 
 type AnalisisPageProps = {
     searchParams: Promise<{
         periodo?: string | string[];
         month?: string | string[];
         year?: string | string[];
+        vista?: string | string[];
     }>;
 };
 
@@ -25,7 +35,10 @@ export default async function AnalisisPage({
     searchParams,
 }: AnalisisPageProps) {
     const params = await searchParams;
-
+    const activeView =
+        resolveClinicalAnalysisView(
+            params.vista,
+        );
     const {
         activeMode,
         currentYear,
@@ -52,6 +65,7 @@ export default async function AnalisisPage({
     const [
         { data: firstEvent },
         { data: firstWellbeingRecord },
+        { data: firstMoodRecord },
     ] = await Promise.all([
         supabase
             .from("eventos")
@@ -65,6 +79,16 @@ export default async function AnalisisPage({
 
         supabase
             .from("registros_bienestar")
+            .select("registrado_en")
+            .eq("user_id", user.id)
+            .order("registrado_en", {
+                ascending: true,
+            })
+            .limit(1)
+            .maybeSingle(),
+
+        supabase
+            .from("registros_estado_animo")
             .select("registrado_en")
             .eq("user_id", user.id)
             .order("registrado_en", {
@@ -95,10 +119,28 @@ export default async function AnalisisPage({
                 ),
             )
             : null;
+    const firstMoodYear =
+        firstMoodRecord?.registrado_en
+            ? Number(
+                new Intl.DateTimeFormat(
+                    "en-US",
+                    {
+                        timeZone:
+                            "America/Santiago",
+                        year: "numeric",
+                    },
+                ).format(
+                    new Date(
+                        firstMoodRecord.registrado_en,
+                    ),
+                ),
+            )
+            : null;
 
     const registeredYears = [
         firstEventYear,
         firstWellbeingYear,
+        firstMoodYear,
     ].filter(
         (year): year is number =>
             year !== null &&
@@ -122,15 +164,27 @@ export default async function AnalisisPage({
     const {
         data: historialAnsiedad,
         error: historialAnsiedadError,
-    } = await supabase
-        .from("eventos")
-        .select("fecha, hora, lvl_ansiedad")
-        .eq("user_id", user.id)
-        .gte("fecha", startDate)
-        .lt("fecha", endDate)
-        .not("lvl_ansiedad", "is", null)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false });
+    } =
+        activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select(
+                    "fecha, hora, lvl_ansiedad",
+                )
+                .eq("user_id", user.id)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .not("lvl_ansiedad", "is", null)
+                .order("fecha", {
+                    ascending: false,
+                })
+                .order("hora", {
+                    ascending: false,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const formateadorFechaGrafico =
         new Intl.DateTimeFormat("es-CL", {
@@ -263,19 +317,81 @@ export default async function AnalisisPage({
                     10,
                 ) / 10,
         }));
+    const moodTrackingResult =
+        activeView === "animo"
+            ? await supabase
+                .from("registros_estado_animo")
+                .select(
+                    `
+                        id,
+                        estado_animo,
+                        interes,
+                        energia,
+                        funcionamiento,
+                        conexion_social,
+                        calidad_sueno,
+                        horas_sueno,
+                        nota,
+                        registrado_en
+                    `,
+                )
+                .eq("user_id", user.id)
+                .gte(
+                    "registrado_en",
+                    `${startDate}T00:00:00Z`,
+                )
+                .lt(
+                    "registrado_en",
+                    `${endDate}T05:00:00Z`,
+                )
+                .order("registrado_en", {
+                    ascending: true,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
+    const {
+        data: moodTrackingRecords,
+        error: moodTrackingError,
+    } = moodTrackingResult;
+
+    const moodRecordsInPeriod =
+        filterMoodTrackingByDateRange(
+            (moodTrackingRecords ??
+                []) as MoodTrackingRecord[],
+            startDate,
+            endDate,
+        );
     const {
         data: historialDosis,
         error: historialDosisError,
-    } = await supabase
-        .from("eventos")
-        .select("fecha, dosis_medicamento")
-        .eq("user_id", user.id)
-        .gte("fecha", startDate)
-        .lt("fecha", endDate)
-        .not("dosis_medicamento", "is", null)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false });
+    } =
+        activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select(
+                    "fecha, dosis_medicamento",
+                )
+                .eq("user_id", user.id)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .not(
+                    "dosis_medicamento",
+                    "is",
+                    null,
+                )
+                .order("fecha", {
+                    ascending: false,
+                })
+                .order("hora", {
+                    ascending: false,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const datosGraficoDosis = [
         ...(historialDosis ?? []),
@@ -291,14 +407,26 @@ export default async function AnalisisPage({
     const {
         data: eventosParaAnalisis,
         error: analisisRegistrosError,
-    } = await supabase
-        .from("eventos")
-        .select("id, descripcion, est_emo_pre")
-        .eq("user_id", user.id)
-        .gte("fecha", startDate)
-        .lt("fecha", endDate)
-        .order("fecha", { ascending: false })
-        .order("hora", { ascending: false });
+    } =
+        activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select(
+                    "id, descripcion, est_emo_pre",
+                )
+                .eq("user_id", user.id)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .order("fecha", {
+                    ascending: false,
+                })
+                .order("hora", {
+                    ascending: false,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const resumenSintomas =
         countSymptomFrequencies(
@@ -338,22 +466,31 @@ export default async function AnalisisPage({
                 </section>
                 <ClinicalPeriodFilter
                     activeMode={activeMode}
+                    analysisView={activeView}
                     basePath="/analisis"
                     selectedMonth={selectedMonth}
                     selectedYear={selectedYear}
                     years={availableYears}
                 />
-                {historialAnsiedadError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible cargar el historial de
-                        ansiedad.
-                    </section>
-                ) : (
-                    <AnxietyLineChart
-                        data={datosGraficoAnsiedad}
-                        description={`Evolución de los niveles de ansiedad registrados durante ${periodLabel}.`}
-                    />
-                )}
+                <ClinicalAnalysisMenu
+                    activeMode={activeMode}
+                    activeView={activeView}
+                    basePath="/analisis"
+                    selectedMonth={selectedMonth}
+                    selectedYear={selectedYear}
+                />
+                {activeView === "ansiedad" &&
+                    (historialAnsiedadError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                            No fue posible cargar el historial de
+                            ansiedad.
+                        </section>
+                    ) : (
+                        <AnxietyLineChart
+                            data={datosGraficoAnsiedad}
+                            description={`Evolución de los niveles de ansiedad registrados durante ${periodLabel}.`}
+                        />
+                    ))}
                 {historialBienestarError ? (
                     <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
                         No fue posible cargar el historial de
@@ -365,49 +502,60 @@ export default async function AnalisisPage({
                         description={`Promedio diario de las puntuaciones de bienestar registradas durante ${periodLabel}.`}
                     />
                 )}
-                {historialDosisError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible cargar el historial de
-                        dosis.
-                    </section>
-                ) : (
-                    <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
-                        <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
-                            Seguimiento farmacológico
-                        </p>
+                {activeView === "animo" && (
+                    <MoodTrackingPanel
+                        records={moodRecordsInPeriod}
+                        periodLabel={periodLabel}
+                        hasError={Boolean(
+                            moodTrackingError,
+                        )}
+                    />
+                )}
+                {activeView === "ansiedad" &&
+                    (historialDosisError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                            No fue posible cargar el historial de
+                            dosis.
+                        </section>
+                    ) : (
+                        <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.12)] sm:p-8">
+                            <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
+                                Seguimiento farmacológico
+                            </p>
 
-                        <h2 className="mt-2 text-2xl font-bold text-kam-navy">
-                            Evolución de las dosis
-                        </h2>
+                            <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                                Evolución de las dosis
+                            </h2>
 
-                        <p className="mt-2 text-sm leading-6 text-kam-navy/70">
-                            Dosis registradas durante{" "}
-                            {periodLabel}.
-                        </p>
+                            <p className="mt-2 text-sm leading-6 text-kam-navy/70">
+                                Dosis registradas durante{" "}
+                                {periodLabel}.
+                            </p>
 
-                        <div className="mt-6">
-                            <DoseLineChart
-                                data={datosGraficoDosis}
+                            <div className="mt-6">
+                                <DoseLineChart
+                                    data={datosGraficoDosis}
+                                />
+                            </div>
+                        </section>
+                    ))}
+                {activeView === "ansiedad" &&
+                    (analisisRegistrosError ? (
+                        <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
+                            No fue posible analizar la información de
+                            los eventos.
+                        </section>
+                    ) : (
+                        <>
+                            <SymptomFrequencyPanel
+                                summary={resumenSintomas}
                             />
-                        </div>
-                    </section>
-                )}
-                {analisisRegistrosError ? (
-                    <section className="mt-8 rounded-xl bg-kam-white p-8 text-center text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.12)]">
-                        No fue posible analizar la información de
-                        los eventos.
-                    </section>
-                ) : (
-                    <>
-                        <SymptomFrequencyPanel
-                            summary={resumenSintomas}
-                        />
 
-                        <EmotionFrequencyPanel
-                            summary={resumenEmociones}
-                        />
-                    </>
-                )}
+                            <EmotionFrequencyPanel
+                                summary={resumenEmociones}
+                            />
+                        </>
+                    ))}
             </main>
         </div>
     );

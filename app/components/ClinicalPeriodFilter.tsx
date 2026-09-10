@@ -1,5 +1,7 @@
 import Link from "next/link";
-
+import type {
+    ClinicalAnalysisView,
+} from "@/lib/analysis/clinicalView";
 import MonthYearFilter from "@/app/eventos/components/MonthYearFilter";
 import { ClinicalPeriodMode } from "@/lib/analysis/clinicalPeriod";
 
@@ -7,6 +9,7 @@ type ClinicalPeriodFilterProps = {
     activeMode: ClinicalPeriodMode;
     basePath: "/analisis" | "/profesional";
     patientId?: string;
+    analysisView?: ClinicalAnalysisView;
     selectedMonth: number;
     selectedYear: number;
     years: number[];
@@ -19,6 +22,7 @@ export default function ClinicalPeriodFilter({
     activeMode,
     basePath,
     patientId,
+    analysisView,
     selectedMonth,
     selectedYear,
     years,
@@ -31,6 +35,13 @@ export default function ClinicalPeriodFilter({
             searchParams.set(
                 "paciente",
                 patientId,
+            );
+        }
+
+        if (analysisView) {
+            searchParams.set(
+                "vista",
+                analysisView,
             );
         }
 
@@ -79,9 +90,9 @@ export default function ClinicalPeriodFilter({
             </h2>
 
             <p className="mt-2 max-w-3xl text-sm leading-6 text-kam-navy/70">
-                El período seleccionado se aplicará al
-                bienestar, la ansiedad, las dosis y los
-                eventos.
+                El período seleccionado se aplicará a
+                todos los registros y análisis clínicos
+                mostrados.
             </p>
 
             <div className="mt-6 flex flex-wrap gap-2">
@@ -97,11 +108,10 @@ export default function ClinicalPeriodFilter({
                                     ? "page"
                                     : undefined
                             }
-                            className={`${linkClassName} ${
-                                isActive
-                                    ? "border-kam-navy bg-kam-navy text-kam-white"
-                                    : "border-kam-gray bg-kam-gray text-kam-navy hover:border-kam-blue hover:bg-kam-blue hover:text-kam-white"
-                            }`}
+                            className={`${linkClassName} ${isActive
+                                ? "border-kam-navy bg-kam-navy text-kam-white"
+                                : "border-kam-gray bg-kam-gray text-kam-navy hover:border-kam-blue hover:bg-kam-blue hover:text-kam-white"
+                                }`}
                             href={option.href}
                         >
                             {option.label}
@@ -116,6 +126,7 @@ export default function ClinicalPeriodFilter({
                 </p>
 
                 <MonthYearFilter
+                    analysisView={analysisView}
                     patientId={patientId}
                     resetHref={currentMonthHref}
                     selectedMonth={selectedMonth}

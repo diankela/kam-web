@@ -1,10 +1,14 @@
 import Link from "next/link";
+import type {
+    ClinicalAnalysisView,
+} from "@/lib/analysis/clinicalView";
 
 type MonthYearFilterProps = {
     selectedMonth: number;
     selectedYear: number;
     years: number[];
     patientId?: string;
+    analysisView?: ClinicalAnalysisView;
     resetHref?: string;
     showReset?: boolean;
 };
@@ -29,6 +33,7 @@ export default function MonthYearFilter({
     selectedYear,
     years,
     patientId,
+    analysisView,
     resetHref = "/eventos",
     showReset = true,
 }: MonthYearFilterProps) {
@@ -42,6 +47,13 @@ export default function MonthYearFilter({
                     name="paciente"
                     type="hidden"
                     value={patientId}
+                />
+            )}
+            {analysisView && (
+                <input
+                    name="vista"
+                    type="hidden"
+                    value={analysisView}
                 />
             )}
             <label className="flex flex-1 flex-col gap-2">

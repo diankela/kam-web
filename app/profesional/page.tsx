@@ -14,6 +14,15 @@ import SymptomFrequencyPanel from "@/app/analisis/components/SymptomFrequencyPan
 import { countEmotionFrequencies } from "@/lib/analysis/countEmotionFrequencies";
 import { countSymptomFrequencies } from "@/lib/analysis/countSymptomFrequencies";
 import ClinicalSummaryMetrics from "@/app/components/ClinicalSummaryMetrics";
+import MoodTrackingPanel from "@/app/components/MoodTrackingPanel";
+import {
+    filterMoodTrackingByDateRange,
+    type MoodTrackingRecord,
+} from "@/lib/analysis/moodTracking";
+import ClinicalAnalysisMenu from "@/app/components/ClinicalAnalysisMenu";
+import {
+    resolveClinicalAnalysisView,
+} from "@/lib/analysis/clinicalView";
 
 type ProfessionalPageProps = {
     searchParams: Promise<{
@@ -21,6 +30,7 @@ type ProfessionalPageProps = {
         month?: string | string[];
         year?: string | string[];
         periodo?: string | string[];
+        vista?: string | string[];
     }>;
 };
 
@@ -30,6 +40,10 @@ export default async function ProfessionalPage({
     searchParams,
 }: ProfessionalPageProps) {
     const params = await searchParams;
+    const activeView =
+        resolveClinicalAnalysisView(
+            params.vista,
+        );
     const {
         activeMode,
         currentYear,
@@ -154,18 +168,20 @@ export default async function ProfessionalPage({
             .filter(Boolean)
             .join(" ")
         : null;
-    const totalEventsResult = selectedPatientId
-        ? await supabase
-            .from("eventos")
-            .select("*", {
-                count: "exact",
-                head: true,
-            })
-            .eq("user_id", selectedPatientId)
-        : {
-            count: 0,
-            error: null,
-        };
+    const totalEventsResult =
+        selectedPatientId &&
+            activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select("*", {
+                    count: "exact",
+                    head: true,
+                })
+                .eq("user_id", selectedPatientId)
+            : {
+                count: 0,
+                error: null,
+            };
 
     const {
         count: totalEvents,
@@ -211,11 +227,54 @@ export default async function ProfessionalPage({
         },
         (_, index) => currentYear - index,
     );
-    const recentEventsResult = selectedPatientId
-        ? await supabase
-            .from("eventos")
-            .select(
-                `
+
+    function buildPatientHref(
+        patientId: string,
+    ) {
+        const searchParams =
+            new URLSearchParams();
+
+        searchParams.set(
+            "paciente",
+            patientId,
+        );
+
+        searchParams.set(
+            "vista",
+            activeView,
+        );
+
+        if (
+            activeMode === "3" ||
+            activeMode === "6"
+        ) {
+            searchParams.set(
+                "periodo",
+                activeMode,
+            );
+        }
+
+        if (activeMode === "month") {
+            searchParams.set(
+                "month",
+                String(selectedMonth),
+            );
+
+            searchParams.set(
+                "year",
+                String(selectedYear),
+            );
+        }
+
+        return `/profesional?${searchParams.toString()}`;
+    }
+    const recentEventsResult =
+        selectedPatientId &&
+            activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select(
+                    `
                   id,
                   fecha,
                   hora,
@@ -229,20 +288,20 @@ export default async function ProfessionalPage({
                   imp_act_diarias,
                   est_emo_pre
               `,
-            )
-            .eq("user_id", selectedPatientId)
-            .gte("fecha", startDate)
-            .lt("fecha", endDate)
-            .order("fecha", {
-                ascending: false,
-            })
-            .order("hora", {
-                ascending: false,
-            })
-        : {
-            data: [],
-            error: null,
-        };
+                )
+                .eq("user_id", selectedPatientId)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .order("fecha", {
+                    ascending: false,
+                })
+                .order("hora", {
+                    ascending: false,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const wellbeingResult = selectedPatientId
         ? await supabase
@@ -271,6 +330,55 @@ export default async function ProfessionalPage({
         data: wellbeingRecords,
         error: wellbeingError,
     } = wellbeingResult;
+
+    const moodTrackingResult =
+        selectedPatientId &&
+            activeView === "animo"
+            ? await supabase
+                .from("registros_estado_animo")
+                .select(
+                    `
+                id,
+                estado_animo,
+                interes,
+                energia,
+                funcionamiento,
+                conexion_social,
+                calidad_sueno,
+                horas_sueno,
+                nota,
+                registrado_en
+            `,
+                )
+                .eq("user_id", selectedPatientId)
+                .gte(
+                    "registrado_en",
+                    `${startDate}T00:00:00Z`,
+                )
+                .lt(
+                    "registrado_en",
+                    `${endDate}T05:00:00Z`,
+                )
+                .order("registrado_en", {
+                    ascending: true,
+                })
+            : {
+                data: [],
+                error: null,
+            };
+
+    const {
+        data: moodTrackingRecords,
+        error: moodTrackingError,
+    } = moodTrackingResult;
+
+    const moodRecordsInPeriod =
+        filterMoodTrackingByDateRange(
+            (moodTrackingRecords ??
+                []) as MoodTrackingRecord[],
+            startDate,
+            endDate,
+        );
 
     const localDateFormatter = new Intl.DateTimeFormat(
         "en-CA",
@@ -353,24 +461,26 @@ export default async function ProfessionalPage({
         data: recentEvents,
         error: recentEventsError,
     } = recentEventsResult;
-    const anxietyResult = selectedPatientId
-        ? await supabase
-            .from("eventos")
-            .select("fecha, hora, lvl_ansiedad")
-            .eq("user_id", selectedPatientId)
-            .gte("fecha", startDate)
-            .lt("fecha", endDate)
-            .not("lvl_ansiedad", "is", null)
-            .order("fecha", {
-                ascending: true,
-            })
-            .order("hora", {
-                ascending: true,
-            })
-        : {
-            data: [],
-            error: null,
-        };
+    const anxietyResult =
+        selectedPatientId &&
+            activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select("fecha, hora, lvl_ansiedad")
+                .eq("user_id", selectedPatientId)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .not("lvl_ansiedad", "is", null)
+                .order("fecha", {
+                    ascending: true,
+                })
+                .order("hora", {
+                    ascending: true,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const {
         data: anxietyRecords,
@@ -401,21 +511,23 @@ export default async function ProfessionalPage({
             nivel: event.lvl_ansiedad ?? 0,
         };
     });
-    const doseResult = selectedPatientId
-        ? await supabase
-            .from("eventos")
-            .select("fecha, dosis_medicamento")
-            .eq("user_id", selectedPatientId)
-            .gte("fecha", startDate)
-            .lt("fecha", endDate)
-            .not("dosis_medicamento", "is", null)
-            .order("fecha", {
-                ascending: true,
-            })
-        : {
-            data: [],
-            error: null,
-        };
+    const doseResult =
+        selectedPatientId &&
+            activeView === "ansiedad"
+            ? await supabase
+                .from("eventos")
+                .select("fecha, dosis_medicamento")
+                .eq("user_id", selectedPatientId)
+                .gte("fecha", startDate)
+                .lt("fecha", endDate)
+                .not("dosis_medicamento", "is", null)
+                .order("fecha", {
+                    ascending: true,
+                })
+            : {
+                data: [],
+                error: null,
+            };
 
     const {
         data: doseRecords,
@@ -628,9 +740,9 @@ export default async function ProfessionalPage({
                                             ? "border-kam-blue bg-kam-blue/5 shadow-[0_8px_25px_rgba(0,122,255,0.12)]"
                                             : "border-kam-navy/10 bg-kam-gray hover:border-kam-blue"
                                             }`}
-                                        href={`/profesional?paciente=${encodeURIComponent(
+                                        href={buildPatientHref(
                                             patient.user_id,
-                                        )}`}
+                                        )}
                                     >
                                         <article>
                                             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -680,6 +792,7 @@ export default async function ProfessionalPage({
                 {selectedPatientId && (
                     <ClinicalPeriodFilter
                         activeMode={activeMode}
+                        analysisView={activeView}
                         basePath="/profesional"
                         patientId={selectedPatientId}
                         selectedMonth={selectedMonth}
@@ -688,28 +801,39 @@ export default async function ProfessionalPage({
                     />
                 )}
                 {selectedPatientId && (
-                    <ClinicalSummaryMetrics
-                        averageAnxiety={averageAnxiety}
-                        averageAnxietyError={Boolean(
-                            anxietyError,
-                        )}
-                        formattedTotalDose={
-                            formattedTotalDose
-                        }
-                        periodEvents={
-                            recentEvents?.length ?? 0
-                        }
-                        periodEventsError={Boolean(
-                            recentEventsError,
-                        )}
-                        periodLabel={periodLabel}
-                        totalDoseError={Boolean(doseError)}
-                        totalEvents={totalEvents}
-                        totalEventsError={Boolean(
-                            totalEventsError,
-                        )}
+                    <ClinicalAnalysisMenu
+                        activeMode={activeMode}
+                        activeView={activeView}
+                        basePath="/profesional"
+                        patientId={selectedPatientId}
+                        selectedMonth={selectedMonth}
+                        selectedYear={selectedYear}
                     />
                 )}
+                {selectedPatientId &&
+                    activeView === "ansiedad" && (
+                        <ClinicalSummaryMetrics
+                            averageAnxiety={averageAnxiety}
+                            averageAnxietyError={Boolean(
+                                anxietyError,
+                            )}
+                            formattedTotalDose={
+                                formattedTotalDose
+                            }
+                            periodEvents={
+                                recentEvents?.length ?? 0
+                            }
+                            periodEventsError={Boolean(
+                                recentEventsError,
+                            )}
+                            periodLabel={periodLabel}
+                            totalDoseError={Boolean(doseError)}
+                            totalEvents={totalEvents}
+                            totalEventsError={Boolean(
+                                totalEventsError,
+                            )}
+                        />
+                    )}
                 {selectedPatientId &&
                     (wellbeingError ? (
                         <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
@@ -719,10 +843,21 @@ export default async function ProfessionalPage({
                     ) : (
                         <WellbeingLineChart
                             data={wellbeingChartData}
-                            description={`Promedio diario de las puntuaciones de bienestar registradas por el paciente durante ${periodLabel}.`}
+                            description={`Indicador general de bienestar del paciente durante ${periodLabel}. Se presenta como referencia común para ambos tipos de seguimiento.`}
                         />
                     ))}
                 {selectedPatientId &&
+                    activeView === "animo" && (
+                        <MoodTrackingPanel
+                            records={moodRecordsInPeriod}
+                            periodLabel={periodLabel}
+                            hasError={Boolean(
+                                moodTrackingError,
+                            )}
+                        />
+                    )}
+                {selectedPatientId &&
+                    activeView === "ansiedad" &&
                     (anxietyError ? (
                         <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
                             No fue posible cargar el historial de
@@ -735,6 +870,7 @@ export default async function ProfessionalPage({
                         />
                     ))}
                 {selectedPatientId &&
+                    activeView === "ansiedad" &&
                     (doseError ? (
                         <section className="mt-8 rounded-xl bg-kam-white p-8 text-center font-semibold text-kam-wine shadow-[0_16px_45px_rgba(15,36,96,0.10)]">
                             No fue posible cargar el historial de
@@ -762,72 +898,75 @@ export default async function ProfessionalPage({
                             </div>
                         </section>
                     ))}
-                {selectedPatientId && !recentEventsError && (
-                    <>
-                        <SymptomFrequencyPanel
-                            summary={symptomSummary}
-                        />
+                {selectedPatientId &&
+                    activeView === "ansiedad" &&
+                    !recentEventsError && (
+                        <>
+                            <SymptomFrequencyPanel
+                                summary={symptomSummary}
+                            />
 
-                        <EmotionFrequencyPanel
-                            summary={emotionSummary}
-                        />
-                    </>
-                )}
-                {selectedPatientId && (
-                    <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.10)] sm:p-8">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-                            <div>
-                                <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
-                                    Seguimiento clínico
-                                </p>
+                            <EmotionFrequencyPanel
+                                summary={emotionSummary}
+                            />
+                        </>
+                    )}
+                {selectedPatientId &&
+                    activeView === "ansiedad" && (
+                        <section className="mt-8 rounded-xl bg-kam-white p-6 shadow-[0_16px_45px_rgba(15,36,96,0.10)] sm:p-8">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                                <div>
+                                    <p className="text-sm font-bold uppercase tracking-wider text-kam-magenta">
+                                        Seguimiento clínico
+                                    </p>
 
-                                <h2 className="mt-2 text-2xl font-bold text-kam-navy">
-                                    Eventos del período
-                                </h2>
+                                    <h2 className="mt-2 text-2xl font-bold text-kam-navy">
+                                        Eventos del período
+                                    </h2>
 
-                                <p className="mt-2 text-sm text-kam-navy/70">
-                                    Registros de{" "}
-                                    {selectedPatientName ||
-                                        "este paciente"}{" "}
-                                    correspondientes a {periodLabel}.
-                                </p>
+                                    <p className="mt-2 text-sm text-kam-navy/70">
+                                        Registros de{" "}
+                                        {selectedPatientName ||
+                                            "este paciente"}{" "}
+                                        correspondientes a {periodLabel}.
+                                    </p>
+                                </div>
+
+                                {!recentEventsError && (
+                                    <p className="text-sm font-semibold text-kam-navy/60">
+                                        {recentEvents?.length ?? 0}{" "}
+                                        {recentEvents?.length === 1
+                                            ? "registro"
+                                            : "registros"}
+                                    </p>
+                                )}
                             </div>
 
-                            {!recentEventsError && (
-                                <p className="text-sm font-semibold text-kam-navy/60">
-                                    {recentEvents?.length ?? 0}{" "}
-                                    {recentEvents?.length === 1
-                                        ? "registro"
-                                        : "registros"}
+                            {recentEventsError ? (
+                                <p
+                                    className="mt-6 border-l-4 border-kam-magenta bg-kam-gray px-5 py-4 font-semibold text-kam-wine"
+                                    role="alert"
+                                >
+                                    No fue posible cargar los eventos del
+                                    paciente.
                                 </p>
+                            ) : recentEvents?.length === 0 ? (
+                                <p className="mt-6 rounded-lg bg-kam-gray px-5 py-8 text-center text-kam-navy/70">
+                                    Este paciente todavía no tiene eventos
+                                    registrados.
+                                </p>
+                            ) : (
+                                <div className="mt-6 grid gap-5 lg:grid-cols-2">
+                                    {recentEvents?.map((event) => (
+                                        <EventRecordCard
+                                            key={event.id}
+                                            event={event}
+                                        />
+                                    ))}
+                                </div>
                             )}
-                        </div>
-
-                        {recentEventsError ? (
-                            <p
-                                className="mt-6 border-l-4 border-kam-magenta bg-kam-gray px-5 py-4 font-semibold text-kam-wine"
-                                role="alert"
-                            >
-                                No fue posible cargar los eventos del
-                                paciente.
-                            </p>
-                        ) : recentEvents?.length === 0 ? (
-                            <p className="mt-6 rounded-lg bg-kam-gray px-5 py-8 text-center text-kam-navy/70">
-                                Este paciente todavía no tiene eventos
-                                registrados.
-                            </p>
-                        ) : (
-                            <div className="mt-6 grid gap-5 lg:grid-cols-2">
-                                {recentEvents?.map((event) => (
-                                    <EventRecordCard
-                                        key={event.id}
-                                        event={event}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                )}
+                        </section>
+                    )}
             </main>
         </div>
     );
